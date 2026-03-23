@@ -91,7 +91,8 @@ Topics: pricing, timeline, technical, personal, commitments, general"""
             raw = response.choices[0].message.content.strip().replace("```json","").replace("```","").strip()
             classification = json.loads(raw)
         except Exception:
-            classification = {"topic": "general", "confidence": 0.5, "reason": "Classification failed"}
+            classification = {"allowed": False, "topic": "unknown", "confidence": 0.0, "reason": "Classification error — requiring approval", "matched_rule": None, "fga_role": role, "layer": "error", "confidence_threshold": confidence_threshold, "threshold_passed": False}
+            return classification
 
         topic = classification.get("topic", "general")
         confidence = float(classification.get("confidence", 0.5))

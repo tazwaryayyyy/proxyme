@@ -181,6 +181,30 @@
     width: 100%; accent-color: var(--accent);
     background: transparent; cursor: pointer;
   }
+  
+  .slider-container { position: relative; width: 100%; margin: 24px 0; }
+  .slider-tooltip {
+    position: absolute;
+    top: -30px;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 10;
+  }
+  .slider-container:hover .slider-tooltip,
+  input[type=range]:active + .slider-tooltip {
+    opacity: 1;
+  }
 
   .confidence-note {
     margin-top: 8px;
@@ -267,8 +291,15 @@
     color: var(--muted);
     border-left: 2px solid var(--accent);
     display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
   .fga-info.visible { display: block; }
+  .fga-info.fade-in { opacity: 1; }
+  
+  #category-section {
+    transition: opacity 0.3s ease;
+  }
 </style>
 </head>
 <body>
@@ -392,7 +423,10 @@
         </div>
         <div class="confidence-value" id="conf-display">70%</div>
       </div>
-      <input type="range" id="conf-slider" min="50" max="95" value="70" step="5" oninput="updateConfidence(this.value)">
+      <div class="slider-container">
+        <input type="range" id="conf-slider" min="50" max="95" value="70" step="5" oninput="updateConfidence(this)" onchange="updateConfidence(this)">
+        <div class="slider-tooltip" id="slider-tooltip">Balanced — uncertain classifications require your approval.</div>
+      </div>
       <div class="confidence-note" id="conf-note">At 70%, the AI will request your approval for uncertain classifications.</div>
     </div>
   </div>
@@ -429,6 +463,11 @@ let currentSession = null;
 let selectedRole = 'custom';
 let confidenceThreshold = 70;
 
+window.addEventListener('load', () => {
+  const slider = document.getElementById('conf-slider');
+  if (slider) updateConfidence(slider);
+});
+
 function selectRole(el) {
   document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
@@ -438,18 +477,26 @@ function selectRole(el) {
   const fgaInfo = document.getElementById('fga-info');
 
   if (selectedRole === 'custom') {
-    catSection.style.display = 'block';
-    fgaInfo.classList.remove('visible');
+    fgaInfo.classList.remove('fade-in');
+    setTimeout(() => {
+      fgaInfo.classList.remove('visible');
+      catSection.style.display = 'block';
+      setTimeout(() => catSection.style.opacity = '1', 50);
+    }, 300);
   } else {
-    catSection.style.display = 'none';
-    const roleDescriptions = {
-      sales_engineer: 'FGA active — Sales Engineer role auto-approves: general, technical, pricing, timeline. All other topics require approval.',
-      junior_ae: 'FGA active — Junior AE role auto-approves general conversation only. All other topics require approval.',
-      executive: 'FGA active — Executive role has full auto-approval authority for all topics.',
-      legal: 'FGA active — Legal/Compliance role auto-approves general and technical only. Commitments, pricing, and personal topics always require approval.'
-    };
-    fgaInfo.textContent = roleDescriptions[selectedRole] || '';
-    fgaInfo.classList.add('visible');
+    catSection.style.opacity = '0';
+    setTimeout(() => {
+      catSection.style.display = 'none';
+      const roleDescriptions = {
+        sales_engineer: 'FGA active — Sales Engineer role auto-approves: general, technical, pricing, timeline. All other topics require approval.',
+        junior_ae: 'FGA active — Junior AE role auto-approves general conversation only. All other topics require approval.',
+        executive: 'FGA active — Executive role has full auto-approval authority for all topics.',
+        legal: 'FGA active — Legal/Compliance role auto-approves general and technical only. Commitments, pricing, and personal topics always require approval.'
+      };
+      fgaInfo.textContent = roleDescriptions[selectedRole] || '';
+      fgaInfo.classList.add('visible');
+      setTimeout(() => fgaInfo.classList.add('fade-in'), 50);
+    }, 300);
   }
 }
 
@@ -459,8 +506,9 @@ function toggleCat(el) {
   el.classList.toggle('on', categoryStates[id]);
 }
 
-function updateConfidence(val) {
-  confidenceThreshold = parseInt(val);
+function updateConfidence(el) {
+  const val = parseInt(el.value);
+  confidenceThreshold = val;
   document.getElementById('conf-display').textContent = val + '%';
   const notes = {
     50: 'Very permissive — most topics auto-approved.',
@@ -474,7 +522,17 @@ function updateConfidence(val) {
     90: 'Very strict — almost everything requires approval.',
     95: 'Maximum caution — near-certain classifications only.'
   };
-  document.getElementById('conf-note').textContent = notes[val] || `At ${val}%, borderline classifications require your approval.`;
+  const noteText = notes[val] || `At ${val}%, borderline classifications require your approval.`;
+  document.getElementById('conf-note').textContent = noteText;
+  
+  const tooltip = document.getElementById('slider-tooltip');
+  if (tooltip) {
+    tooltip.textContent = noteText;
+    const min = parseFloat(el.min);
+    const max = parseFloat(el.max);
+    const percent = ((val - min) / (max - min)) * 100;
+    tooltip.style.left = `calc(${percent}% + (${8 - percent * 0.15}px))`;
+  }
 }
 
 async function addNLRule() {

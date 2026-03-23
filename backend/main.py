@@ -183,6 +183,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
 async def process_transcript(websocket: WebSocket, session_id: str, transcript: str):
     """Process a transcript chunk in a background task."""
+    if session_id not in active_sessions:
+        return
     try:
         # Fetch a per-action scoped token from Token Vault for classification
         classify_token = await auth0_client.get_scoped_token(

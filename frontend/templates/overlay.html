@@ -25,7 +25,10 @@
     position:fixed; right:14px; top:14px; width:360px;
     max-height:calc(100vh - 28px); display:flex; flex-direction:column;
     gap:8px; z-index:9999; overflow-y:auto; scrollbar-width:none; padding-bottom:8px;
+    transition: box-shadow 0.3s ease;
   }
+  #overlay.needs-approval { box-shadow: 0 0 0 2px rgba(245,158,11,0.6); border-radius: 14px; animation: borderPulse 1.5s ease-in-out infinite; }
+  @keyframes borderPulse { 0%,100%{box-shadow:0 0 0 2px rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 4px rgba(245,158,11,0.8)} }
 
   /* Consent banner */
   #consent-banner {
@@ -89,9 +92,9 @@
 
   /* Approval card */
   .approval-card {
-    background:var(--surface); border:1px solid rgba(124,106,247,0.3); border-left:3px solid var(--accent);
+    background:var(--surface); border:1px solid rgba(245,158,11,0.3); border-left:3px solid var(--amber);
     border-radius:12px; padding:13px 15px; backdrop-filter:var(--blur);
-    animation:slideIn 0.25s ease-out; box-shadow:0 0 28px var(--glow);
+    animation:slideIn 0.25s ease-out; box-shadow:0 0 28px rgba(245,158,11,0.15);
   }
 
   @keyframes slideIn { from{opacity:0;transform:translateY(-8px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
@@ -104,7 +107,7 @@
   }
   .card-label.green { color:var(--green); }
   .card-label.purple { color:var(--accent2); }
-  .card-label.purple-pulse { color:var(--accent2); animation:pulse 1s infinite; }
+  .card-label.purple-pulse { color:var(--amber); animation:pulse 1s infinite; }
   .card-label::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
 
   .card-text { font-size:13px; line-height:1.65; color:var(--text); }
@@ -138,7 +141,7 @@
   .ciba-spinner {
     width:16px; height:16px; border-radius:50%;
     border:2px solid rgba(124,106,247,0.2);
-    border-top-color:var(--accent);
+    border-top-color:var(--amber);
     animation:spin 1s linear infinite; flex-shrink:0;
   }
   @keyframes spin { to{transform:rotate(360deg)} }
@@ -166,10 +169,10 @@
   .btn-dismiss:hover { color:var(--text); border-color:var(--border2); }
 
   .btn-approve {
-    flex:1; background:rgba(124,106,247,0.15); border:1px solid rgba(124,106,247,0.4); border-radius:8px;
-    padding:9px; color:var(--accent2); font-size:13px; font-family:'Syne',sans-serif; font-weight:600; cursor:pointer; transition:all 0.2s;
+    flex:1; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); border-radius:8px;
+    padding:9px; color:var(--amber); font-size:13px; font-family:'Syne',sans-serif; font-weight:600; cursor:pointer; transition:all 0.2s;
   }
-  .btn-approve:hover { background:rgba(124,106,247,0.25); }
+  .btn-approve:hover { background:rgba(245,158,11,0.25); }
 
   .btn-deny {
     background:none; border:1px solid var(--border); border-radius:8px; padding:9px 13px;
@@ -201,7 +204,7 @@
   <div id="consent-banner">
     <div class="dot"></div>
     <span>AI ASSISTANT ACTIVE — participants may be transcribed</span>
-    <button onclick="this.closest('#consent-banner').remove()">×</button>
+    <button onclick="document.getElementById('consent-banner').remove()">×</button>
   </div>
 
   <div id="header">
@@ -226,6 +229,12 @@ let ws = null, isListening = false, recognition = null;
 const decisionLog = [];
 const cibaTimers = {};
 
+window.addEventListener('load', () => {
+  if (SESSION_ID && SESSION_ID !== 'demo') {
+    connectWS();
+  }
+});
+
 function setStatus(state, text) {
   document.getElementById('status-dot').className = state;
   document.getElementById('status-text').textContent = text;
@@ -240,8 +249,21 @@ function toggleListening() {
 }
 
 function connectWS() {
+  if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
   ws = new WebSocket(`ws://${location.host}/ws/${SESSION_ID}`);
-  ws.onopen = () => setStatus('listening', 'PROXY ME — listening');
+  ws.onopen = () => {
+    if (isListening) {
+      setStatus('listening', 'PROXY ME — listening');
+      const btn = document.getElementById('toggle-btn');
+      btn.textContent = 'STOP';
+      btn.classList.add('active');
+    } else {
+      setStatus('', 'PROXY ME — connected (paused)');
+      const btn = document.getElementById('toggle-btn');
+      btn.textContent = 'START';
+      btn.classList.remove('active');
+    }
+  };
   ws.onclose = () => { setStatus('','PROXY ME — disconnected'); setTimeout(connectWS,3000); };
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 }
@@ -249,8 +271,26 @@ function connectWS() {
 function handleMessage(msg) {
   if (msg.type==='suggestion') { setStatus('listening','PROXY ME — suggestion ready'); showSuggestion(msg); }
   else if (msg.type==='approval_required') { setStatus('approval','PROXY ME — approval needed'); showApproval(msg); }
-  else if (msg.type==='denied') { addHistory({type:'deny',text:'Handled manually',topic:'—',time:now()}); setStatus('listening','PROXY ME — listening'); }
-  else if (msg.type==='timeout') { addHistory({type:'timeout',text:'Approval timed out',topic:'—',time:now()}); setStatus('listening','PROXY ME — listening'); }
+  else if (msg.type==='denied') { 
+      addHistory({type:'deny',text:msg.message || 'Handled manually',topic:'—',time:now()}); 
+      setStatus('listening','PROXY ME — listening'); 
+      const card = document.querySelector(`[data-approval-id="${msg.approval_id}"]`);
+      if (card) {
+          clearInterval(cibaTimers[msg.approval_id]);
+          dismiss(card);
+      }
+      document.getElementById('overlay').classList.remove('needs-approval');
+  }
+  else if (msg.type==='timeout') { 
+      addHistory({type:'timeout',text:msg.message || 'Approval timed out',topic:'—',time:now()}); 
+      setStatus('listening','PROXY ME — listening'); 
+      const card = document.querySelector(`[data-approval-id="${msg.approval_id}"]`);
+      if (card) {
+          clearInterval(cibaTimers[msg.approval_id]);
+          dismiss(card);
+      }
+      document.getElementById('overlay').classList.remove('needs-approval');
+  }
 }
 
 function buildReasoningPills(msg) {
@@ -311,6 +351,7 @@ function showApproval(msg) {
     </div>
   `;
   document.getElementById('cards').prepend(card);
+  document.getElementById('overlay').classList.add('needs-approval');
 
   // Start elapsed timer
   const start = Date.now();
@@ -337,6 +378,7 @@ function respond(approvalId, approved, btn, topic, text) {
     text: approved ? `Approved: "${text.slice(0,55)}..."` : 'Handled manually',
     topic, time: now()
   });
+  document.getElementById('overlay').classList.remove('needs-approval');
   dismiss(card);
   setStatus('listening','PROXY ME — listening');
 }
@@ -395,6 +437,10 @@ function startListening() {
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
+  
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    setStatus('listening', 'PROXY ME — listening');
+  }
   let finalBuffer = '', debounce = null;
   recognition.onresult = (e) => {
     let interim='', final='';
