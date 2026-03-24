@@ -4,22 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Proxy Me — Overlay</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-sans/style.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-mono/style.css" />
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    --surface: rgba(17,17,26,0.78);
-    --surface2: rgba(26,26,38,0.88);
-    --border: rgba(255,255,255,0.07);
-    --border2: rgba(255,255,255,0.13);
-    --text: #e8e8f0; --muted: #6b6b80;
-    --accent: #7c6af7; --accent2: #a594f9;
-    --green: #34d399; --amber: #fbbf24; --red: #f87171;
-    --glow: rgba(124,106,247,0.15);
+    --surface: rgba(10,10,15,0.78);
+    --surface2: rgba(17,17,24,0.88);
+    --border: #1A1A1A;
+    --border2: #222222;
+    --text: #ffffff; --muted: #888888;
+    --accent: #8B5CF6; --accent2: #a594f9;
+    --green: #34d399; --amber: #8B5CF6; --red: #f87171;
+    --glow: rgba(139,92,246,0.15);
     --blur: blur(20px) saturate(1.4);
   }
-  html,body { background:#0a0a0f; font-family:'Syne',sans-serif; color:var(--text); height:100%; overflow:hidden; }
+  html,body { background:transparent; font-family:'Geist Sans',sans-serif; color:var(--text); font-weight:300; height:100%; overflow:hidden; }
 
   #overlay {
     position:fixed; right:14px; top:14px; width:360px;
@@ -27,31 +27,30 @@
     gap:8px; z-index:9999; overflow-y:auto; scrollbar-width:none; padding-bottom:8px;
     transition: box-shadow 0.3s ease;
   }
-  #overlay.needs-approval { box-shadow: 0 0 0 2px rgba(245,158,11,0.6); border-radius: 14px; animation: borderPulse 1.5s ease-in-out infinite; }
-  @keyframes borderPulse { 0%,100%{box-shadow:0 0 0 2px rgba(245,158,11,0.4)} 50%{box-shadow:0 0 0 4px rgba(245,158,11,0.8)} }
+
 
   /* Consent banner */
   #consent-banner {
-    background:rgba(251,191,36,0.07); border:1px solid rgba(251,191,36,0.22);
-    border-radius:10px; padding:8px 12px;
+    background:rgba(139,92,246,0.05); border:1px solid rgba(139,92,246,0.15);
+    border-radius:6px; padding:8px 12px;
     display:flex; align-items:center; gap:8px; backdrop-filter:var(--blur);
   }
-  #consent-banner .dot { width:6px; height:6px; border-radius:50%; background:var(--amber); flex-shrink:0; animation:pulse 2s infinite; }
-  #consent-banner span { font-size:10px; font-family:'DM Mono',monospace; color:var(--amber); letter-spacing:0.05em; flex:1; }
-  #consent-banner button { background:none; border:none; color:rgba(251,191,36,0.5); cursor:pointer; font-size:14px; }
+  #consent-banner .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0; animation:pulse 2s infinite; }
+  #consent-banner span { font-size:11px; font-family:'Geist Mono',monospace; color:var(--accent); letter-spacing:0.05em; flex:1; }
+  #consent-banner button { background:none; border:none; color:rgba(139,92,246,0.5); cursor:pointer; font-size:14px; }
 
   /* Header */
   #header {
-    background:var(--surface); border:1px solid var(--border2); border-radius:14px;
-    padding:11px 14px; display:flex; align-items:center; gap:9px; backdrop-filter:var(--blur);
+    background:var(--surface); border:1px solid var(--border2); border-radius:6px;
+    padding:8px 12px; display:flex; align-items:center; gap:9px; backdrop-filter:var(--blur);
   }
   #status-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); transition:background 0.3s; flex-shrink:0; }
   #status-dot.listening { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
-  #status-dot.processing { background:var(--amber); box-shadow:0 0 8px var(--amber); }
+  #status-dot.processing { background:var(--accent); box-shadow:0 0 8px var(--accent); }
   #status-dot.approval { background:var(--accent); box-shadow:0 0 8px var(--accent); animation:pulse 1s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
-  #status-text { font-size:11px; font-family:'DM Mono',monospace; color:var(--muted); flex:1; letter-spacing:0.06em; }
+  #status-text { font-size:11px; font-family:'Geist Mono',monospace; color:var(--muted); flex:1; letter-spacing:0.06em; text-transform: lowercase; }
 
   #waveform { display:flex; align-items:center; gap:2px; height:16px; }
   .wave-bar { width:2px; background:var(--accent); border-radius:1px; height:3px; }
@@ -61,15 +60,15 @@
   @keyframes wave { 0%,100%{height:3px} 50%{height:13px} }
 
   #toggle-btn {
-    background:none; border:1px solid var(--border2); border-radius:7px;
-    padding:4px 9px; color:var(--muted); font-size:11px; font-family:'DM Mono',monospace; cursor:pointer; transition:all 0.2s;
+    background:none; border:1px solid var(--border2); border-radius:4px;
+    padding:4px 9px; color:var(--muted); font-size:11px; font-family:'Geist Mono',monospace; font-weight:500; cursor:pointer; transition:all 0.2s;
   }
-  #toggle-btn:hover { border-color:var(--accent); color:var(--accent2); }
-  #toggle-btn.active { background:var(--glow); border-color:var(--accent); color:var(--accent2); }
+  #toggle-btn:hover { border-color:var(--accent); color:var(--accent); }
+  #toggle-btn.active { background:var(--glow); border-color:var(--accent); color:var(--accent); }
 
   #end-btn {
-    background:none; border:1px solid rgba(248,113,113,0.25); border-radius:7px;
-    padding:4px 9px; color:rgba(248,113,113,0.5); font-size:11px; font-family:'DM Mono',monospace; cursor:pointer; transition:all 0.2s;
+    background:none; border:1px solid rgba(248,113,113,0.25); border-radius:4px;
+    padding:4px 9px; color:rgba(248,113,113,0.5); font-size:11px; font-family:'Geist Mono',monospace; font-weight:500; cursor:pointer; transition:all 0.2s;
   }
   #end-btn:hover { border-color:var(--red); color:var(--red); }
 
@@ -77,11 +76,11 @@
   #flow-ticker {
     background: rgba(20,20,30,0.8);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 6px 10px;
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--accent2);
+    font-family: 'Geist Mono', monospace; font-weight:500;
+    font-size: 10px;
+    color: var(--accent);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -95,26 +94,26 @@
 
   /* Transcript */
   #transcript-box {
-    background:var(--surface); border:1px solid var(--border); border-radius:11px;
+    background:var(--surface); border:1px solid var(--border2); border-radius:6px;
     padding:10px 13px; min-height:40px; max-height:70px; overflow:hidden;
-    font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); line-height:1.6;
+    font-family:'Geist Sans',sans-serif; font-size:13px; color:var(--muted); line-height:1.6; font-weight:300;
     transition:all 0.3s; backdrop-filter:var(--blur);
   }
-  #transcript-box.active { border-color:var(--border2); color:var(--text); }
+  #transcript-box.active { color:var(--text); }
 
   #cards { display:flex; flex-direction:column; gap:8px; }
 
   /* Suggestion card */
   .suggestion-card {
     background:var(--surface); border:1px solid var(--border2); border-left:3px solid var(--green);
-    border-radius:12px; padding:13px 15px; backdrop-filter:var(--blur); animation:slideIn 0.25s ease-out;
+    border-radius:6px; padding:13px 15px; backdrop-filter:var(--blur); animation:slideIn 0.25s ease-out;
   }
 
   /* Approval card */
   .approval-card {
-    background:var(--surface); border:1px solid rgba(245,158,11,0.3); border-left:3px solid var(--amber);
-    border-radius:12px; padding:13px 15px; backdrop-filter:var(--blur);
-    animation:slideIn 0.25s ease-out; box-shadow:0 0 28px rgba(245,158,11,0.15);
+    background:var(--surface); border:1px solid var(--border2);
+    border-radius:6px; padding:13px 15px; backdrop-filter:var(--blur);
+    animation:slideIn 0.25s ease-out; box-shadow:0 8px 32px rgba(139,92,246,0.15);
   }
 
   @keyframes slideIn { from{opacity:0;transform:translateY(-8px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
@@ -122,100 +121,93 @@
   .removing { animation:slideOut 0.2s ease-in forwards; }
 
   .card-label {
-    font-size:10px; font-family:'DM Mono',monospace; letter-spacing:0.1em; margin-bottom:7px;
-    display:flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:500; font-family:'Geist Mono',monospace; letter-spacing:0.05em; margin-bottom:7px;
+    display:flex; align-items:center; gap:6px; text-transform: lowercase;
   }
   .card-label.green { color:var(--green); }
-  .card-label.purple { color:var(--accent2); }
-  .card-label.purple-pulse { color:var(--amber); animation:pulse 1s infinite; }
+  .card-label.purple { color:var(--accent); }
+  .card-label.purple-pulse { color:var(--accent); animation:pulse 1s infinite; }
   .card-label::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
 
-  .card-text { font-size:13px; line-height:1.65; color:var(--text); }
-  .card-question { font-size:10px; font-family:'DM Mono',monospace; color:var(--muted); margin-bottom:7px; font-style:italic; }
+  .card-text { font-size:14px; line-height:1.65; color:var(--text); }
+  .card-question { font-size:12px; font-family:'Geist Mono',monospace; color:var(--muted); margin-bottom:7px; font-style:italic; }
   .card-preview {
-    font-size:12px; line-height:1.6; color:var(--text); background:var(--surface2);
-    border-radius:8px; padding:9px 11px; border-left:2px solid var(--accent);
+    font-size:13px; line-height:1.6; color:var(--text); background:var(--surface2);
+    border-radius:6px; padding:9px 11px; border-left:2px solid var(--accent);
   }
 
   .reasoning { margin-top:7px; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
   .reason-pill {
-    background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:100px;
-    padding:2px 7px; font-size:9px; font-family:'DM Mono',monospace; color:var(--muted);
+    background:var(--surface2); border:1px solid var(--border2); border-radius:4px;
+    padding:2px 7px; font-size:10px; font-weight:500; font-family:'Geist Mono',monospace; color:var(--text);
   }
-  .reason-pill.topic { border-color:rgba(52,211,153,0.2); color:rgba(52,211,153,0.7); }
-  .reason-pill.rule { border-color:rgba(124,106,247,0.2); color:rgba(165,148,249,0.7); }
-  .reason-pill.conf { border-color:rgba(251,191,36,0.2); color:rgba(251,191,36,0.6); }
-  .reason-pill.fga { border-color:rgba(248,113,113,0.2); color:rgba(248,113,113,0.7); }
 
-  .card-reason { margin-top:6px; font-size:10px; font-family:'DM Mono',monospace; color:var(--muted); }
+  .card-reason { margin-top:6px; font-size:11px; font-family:'Geist Mono',monospace; color:var(--muted); }
 
   /* CIBA waiting indicator */
   .ciba-waiting {
     margin-top:10px;
-    background:rgba(124,106,247,0.06);
-    border:1px solid rgba(124,106,247,0.2);
-    border-radius:8px;
+    background:rgba(139,92,246,0.06);
+    border:1px solid var(--border2);
+    border-radius:6px;
     padding:10px 12px;
     display:flex; align-items:center; gap:10px;
   }
   .ciba-spinner {
     width:16px; height:16px; border-radius:50%;
-    border:2px solid rgba(124,106,247,0.2);
-    border-top-color:var(--amber);
+    border:2px solid var(--border2);
+    border-top-color:var(--accent);
     animation:spin 1s linear infinite; flex-shrink:0;
   }
   @keyframes spin { to{transform:rotate(360deg)} }
   .ciba-waiting-text { flex:1; }
-  .ciba-waiting-text .ciba-title { font-size:11px; font-family:'DM Mono',monospace; color:var(--accent2); }
-  .ciba-waiting-text .ciba-elapsed { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; margin-top:2px; }
+  .ciba-waiting-text .ciba-title { font-size:12px; font-family:'Geist Mono',monospace; font-weight:500; color:var(--accent); }
+  .ciba-waiting-text .ciba-elapsed { font-size:11px; color:var(--muted); font-family:'Geist Mono',monospace; margin-top:2px; }
   .ciba-mode-badge {
-    font-size:9px; font-family:'DM Mono',monospace;
-    padding:2px 7px; border-radius:100px;
-    background:rgba(124,106,247,0.12); border:1px solid rgba(124,106,247,0.25); color:var(--accent2);
+    font-size:10px; font-family:'Geist Mono',monospace; font-weight:500;
+    padding:2px 7px; border-radius:4px;
+    background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.25); color:var(--accent);
   }
 
   .card-actions { display:flex; gap:7px; margin-top:10px; }
 
   .btn-use {
-    flex:1; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.3); border-radius:8px;
-    padding:7px; color:var(--green); font-size:12px; font-family:'Syne',sans-serif; font-weight:600; cursor:pointer; transition:all 0.2s;
+    flex:1; background:var(--green); border:1px solid var(--green); border-radius:6px;
+    padding:9px; color:#000; font-size:13px; font-family:'Geist Sans',sans-serif; font-weight:500; cursor:pointer; transition:all 0.2s;
   }
-  .btn-use:hover { background:rgba(52,211,153,0.2); }
+  .btn-use:hover { opacity:0.9; }
 
   .btn-dismiss {
-    background:none; border:1px solid var(--border); border-radius:8px; padding:7px 11px;
-    color:var(--muted); font-size:12px; cursor:pointer; transition:all 0.2s;
+    background:none; border:1px solid var(--border2); border-radius:6px; padding:9px 13px;
+    color:var(--text); font-size:13px; font-family:'Geist Sans',sans-serif; cursor:pointer; transition:all 0.2s;
   }
-  .btn-dismiss:hover { color:var(--text); border-color:var(--border2); }
+  .btn-dismiss:hover { border-color:var(--border); }
 
   .btn-approve {
-    flex:1; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); border-radius:8px;
-    padding:9px; color:var(--amber); font-size:13px; font-family:'Syne',sans-serif; font-weight:600; cursor:pointer; transition:all 0.2s;
+    flex:1; background:var(--accent); border:1px solid var(--accent); border-radius:6px;
+    padding:9px; color:#fff; font-size:13px; font-family:'Geist Sans',sans-serif; font-weight:500; cursor:pointer; transition:all 0.2s;
   }
-  .btn-approve:hover { background:rgba(245,158,11,0.25); }
+  .btn-approve:hover { opacity:0.9; }
 
   .btn-deny {
-    background:none; border:1px solid var(--border); border-radius:8px; padding:9px 13px;
-    color:var(--muted); font-size:13px; cursor:pointer; transition:all 0.2s;
+    background:none; border:1px solid var(--border2); border-radius:6px; padding:9px 13px;
+    color:var(--text); font-size:13px; font-family:'Geist Sans',sans-serif; cursor:pointer; transition:all 0.2s;
   }
-  .btn-deny:hover { border-color:var(--red); color:var(--red); }
+  .btn-deny:hover { border-color:var(--border); }
 
   /* History */
   #history {
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    background:var(--surface); border:1px solid var(--border2); border-radius:6px;
     padding:10px 13px; max-height:160px; overflow-y:auto; scrollbar-width:none; backdrop-filter:var(--blur);
   }
   #history:empty { display:none; }
-  .history-item { display:flex; align-items:flex-start; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .history-item { display:flex; align-items:flex-start; gap:8px; padding:5px 0; border-bottom:1px solid var(--border2); }
   .history-item:last-child { border-bottom:none; }
   .history-icon { flex-shrink:0; margin-top:1px; font-size:11px; }
   .history-body { flex:1; }
-  .history-text { color:var(--muted); line-height:1.5; font-family:'DM Mono',monospace; font-size:10px; }
+  .history-text { color:var(--text); line-height:1.5; font-family:'Geist Mono',monospace; font-size:11px; }
   .history-pills { display:flex; gap:4px; margin-top:3px; flex-wrap:wrap; }
-  .h-pill { font-size:9px; font-family:'DM Mono',monospace; padding:1px 6px; border-radius:100px; border:1px solid var(--border); color:var(--muted); }
-  .h-pill.approved { border-color:rgba(52,211,153,0.2); color:rgba(52,211,153,0.6); }
-  .h-pill.denied { border-color:rgba(248,113,113,0.2); color:rgba(248,113,113,0.6); }
-  .h-pill.auto { border-color:rgba(124,106,247,0.2); color:rgba(165,148,249,0.6); }
+  .h-pill { font-size:10px; font-family:'Geist Mono',monospace; padding:2px 6px; border-radius:4px; border:1px solid var(--border2); color:var(--muted); }
 </style>
 </head>
 <body>
@@ -223,13 +215,13 @@
 
   <div id="consent-banner">
     <div class="dot"></div>
-    <span>AI ASSISTANT ACTIVE — participants may be transcribed</span>
+    <span>proxy: active</span>
     <button onclick="document.getElementById('consent-banner').remove()">×</button>
   </div>
 
   <div id="header">
     <div id="status-dot"></div>
-    <span id="status-text">PROXY ME — idle</span>
+    <span id="status-text">proxy: idle</span>
     <div id="waveform">
       <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
       <div class="wave-bar"></div><div class="wave-bar"></div>
@@ -292,28 +284,28 @@ function connectWS() {
   ws = new WebSocket(`${wsProtocol}//${location.host}/ws/${SESSION_ID}`);
   ws.onopen = () => {
     if (isListening) {
-      setStatus('listening', 'PROXY ME — listening');
+      setStatus('listening', 'proxy: listening');
       const btn = document.getElementById('toggle-btn');
       btn.textContent = 'STOP';
       btn.classList.add('active');
     } else {
-      setStatus('', 'PROXY ME — connected (paused)');
+      setStatus('', 'proxy: connected (paused)');
       const btn = document.getElementById('toggle-btn');
       btn.textContent = 'START';
       btn.classList.remove('active');
     }
   };
-  ws.onclose = () => { setStatus('','PROXY ME — disconnected'); setTimeout(connectWS,3000); };
+  ws.onclose = () => { setStatus('','proxy: disconnected'); setTimeout(connectWS,3000); };
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
 }
 
 function handleMessage(msg) {
   if (msg.type === 'flow_ticker') { addTicker(msg.message); }
-  else if (msg.type==='suggestion') { setStatus('listening','PROXY ME — suggestion ready'); showSuggestion(msg); }
-  else if (msg.type==='approval_required') { setStatus('approval','PROXY ME — approval needed'); showApproval(msg); }
+  else if (msg.type==='suggestion') { setStatus('listening','proxy: suggestion ready'); showSuggestion(msg); }
+  else if (msg.type==='approval_required') { setStatus('approval','proxy: approval needed'); showApproval(msg); }
   else if (msg.type==='denied') { 
       addHistory({type:'deny',text:msg.message || 'Handled manually',topic:'—',time:now()}); 
-      setStatus('listening','PROXY ME — listening'); 
+      setStatus('listening','proxy: listening'); 
       const card = document.querySelector(`[data-approval-id="${msg.approval_id}"]`);
       if (card) {
           clearInterval(cibaTimers[msg.approval_id]);
@@ -323,7 +315,7 @@ function handleMessage(msg) {
   }
   else if (msg.type==='timeout') { 
       addHistory({type:'timeout',text:msg.message || 'Approval timed out',topic:'—',time:now()}); 
-      setStatus('listening','PROXY ME — listening'); 
+      setStatus('listening','proxy: listening'); 
       const card = document.querySelector(`[data-approval-id="${msg.approval_id}"]`);
       if (card) {
           clearInterval(cibaTimers[msg.approval_id]);
@@ -348,12 +340,12 @@ function showSuggestion(msg) {
   card.className = 'suggestion-card';
   const safeText = (msg.text||'').replace(/`/g,'\\`');
   card.innerHTML = `
-    <div class="card-label green">AUTO-APPROVED · ${msg.topic||'general'}</div>
+    <div class="card-label green">auto-approved · ${msg.topic||'general'}</div>
     <div class="card-text">${msg.text||''}</div>
     ${buildReasoningPills(msg)}
     <div class="card-actions">
-      <button class="btn-use" onclick="useResponse(this,\`${safeText}\`,'${msg.topic||'general'}')">Use this</button>
-      <button class="btn-dismiss" onclick="dismiss(this.closest('.suggestion-card'))">Dismiss</button>
+      <button class="btn-use" onclick="useResponse(this,\`${safeText}\`,'${msg.topic||'general'}')">use this</button>
+      <button class="btn-dismiss" onclick="dismiss(this.closest('.suggestion-card'))">dismiss</button>
     </div>
   `;
   document.getElementById('cards').prepend(card);
@@ -380,14 +372,14 @@ function showApproval(msg) {
 
   const safePrev = (msg.suggested_response||'').replace(/`/g,'\\`');
   card.innerHTML = `
-    <div class="card-label purple-pulse">APPROVAL REQUIRED · ${msg.topic||'sensitive'}</div>
+    <div class="card-label purple-pulse">approval required · ${msg.topic||'sensitive'}</div>
     <div class="card-question">"${msg.question||''}"</div>
     <div class="card-preview">${msg.suggested_response||''}</div>
     ${buildReasoningPills(msg)}
     ${waitingHtml}
     <div class="card-actions">
-      <button class="btn-approve" onclick="respond('${msg.approval_id}',true,this,'${msg.topic||'sensitive'}',\`${safePrev}\`)">Approve & use</button>
-      <button class="btn-deny" onclick="respond('${msg.approval_id}',false,this,'${msg.topic||'sensitive'}','')">I'll handle it</button>
+      <button class="btn-approve" onclick="respond('${msg.approval_id}',true,this,'${msg.topic||'sensitive'}',\`${safePrev}\`)">approve & use</button>
+      <button class="btn-deny" onclick="respond('${msg.approval_id}',false,this,'${msg.topic||'sensitive'}','')">i'll handle it</button>
     </div>
   `;
   document.getElementById('cards').prepend(card);
@@ -425,7 +417,7 @@ function respond(approvalId, approved, btn, topic, text) {
 
 function useResponse(btn, text, topic) {
   navigator.clipboard.writeText(text).catch(()=>{});
-  btn.textContent = 'Copied!';
+  btn.textContent = 'copied!';
   btn.style.background = 'rgba(52,211,153,0.25)';
   addHistory({type:'use', text:`Used: "${text.slice(0,55)}..."`, topic, time:now()});
   setTimeout(()=>dismiss(btn.closest('.suggestion-card')), 1200);
@@ -479,7 +471,7 @@ function startListening() {
   recognition.lang = 'en-US';
   
   if (ws && ws.readyState === WebSocket.OPEN) {
-    setStatus('listening', 'PROXY ME — listening');
+    setStatus('listening', 'proxy: listening');
   }
   let finalBuffer = '', debounce = null;
   recognition.onresult = (e) => {
@@ -497,13 +489,13 @@ function startListening() {
       debounce=setTimeout(()=>{
         if (finalBuffer.trim().length>8 && ws && ws.readyState===WebSocket.OPEN) {
           ws.send(JSON.stringify({type:'transcript', text:finalBuffer.trim()}));
-          setStatus('processing','PROXY ME — processing...');
+          setStatus('processing','proxy: processing...');
           finalBuffer='';
         }
       }, 1200);
     }
   };
-  recognition.onerror = ()=>setStatus('','PROXY ME — mic error');
+  recognition.onerror = ()=>setStatus('','proxy: mic error');
   recognition.onend = ()=>{ if(isListening) recognition.start(); };
   recognition.start();
 }
@@ -512,7 +504,7 @@ function stopListening() {
   if (recognition) recognition.stop();
   if (ws) ws.close();
   isListening=false;
-  setStatus('','PROXY ME — idle');
+  setStatus('','proxy: idle');
   const box=document.getElementById('transcript-box');
   box.classList.remove('active');
   box.textContent='Waiting for audio...';
