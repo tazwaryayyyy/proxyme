@@ -42,7 +42,6 @@ class Auth0Client:
         self._management_token: Optional[str] = None
 
     def fga_check(self, role: str, topic: str) -> dict:
-        """Fine-Grained Authorization check by role and topic."""
         role_config = FGA_ROLE_PERMISSIONS.get(role, FGA_ROLE_PERMISSIONS["custom"])
         allowed = topic.lower() in [t.lower() for t in role_config["allowed_topics"]]
         return {
@@ -81,11 +80,6 @@ class Auth0Client:
             return ""
 
     async def get_scoped_token(self, action: str, scope: str) -> dict:
-        """
-        Per-action Token Vault fetch. Each action gets its own minimal-scope token.
-        action: e.g. "classify_transcript", "generate_response"
-        scope: e.g. "read:transcripts", "write:suggestions"
-        """
         mgmt_token = await self.get_management_token()
         if not mgmt_token:
             return {
@@ -117,23 +111,35 @@ class Auth0Client:
                     "expires_in": data.get("expires_in", 86400)
                 }
         except Exception as e:
-            return {"access_token": "", "scope": scope, "action": action, "vault_sourced": False, "error": str(e)}
+            return {
+                "access_token": "",
+                "scope": scope,
+                "action": action,
+                "vault_sourced": False,
+                "error": str(e)
+            }
 
     async def initiate_ciba_with_rar(self, user_id: str, topic: str, proposed_response: str, binding_message: str) -> dict:
         """
         CIBA with Rich Authorization Requests (RAR).
-        Passes the proposed response text as authorization_details so the Guardian
-        push notification shows exactly what the user is approving — not a blind prompt.
+        - login_hint uses iss_sub JSON format required by Auth0
+        - request parameter removed (not supported on standard plans)
+        - authorization_details carries the RAR payload
         """
+        short_binding = f"ProxyMe:{topic[:12]}"
+
         authorization_details = json.dumps([{
             "type": "proxy_me_approval",
             "topic": topic,
-            "proposed_response": proposed_response[:200],
-            "action": "speak_on_behalf",
-            "requires_human_approval": True
+            "proposed_response": proposed_response[:80],
+            "action": "speak_on_behalf"
         }])
 
-        short_binding = f"ProxyMe:{topic[:12]}"
+        login_hint = json.dumps({
+            "format": "iss_sub",
+            "iss": f"https://{self.domain}/",
+            "sub": user_id
+        })
 
         if not self.domain or not self.client_id:
             return {
@@ -151,11 +157,10 @@ class Auth0Client:
                     data={
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
-                        "login_hint": user_id,
+                        "login_hint": login_hint,
                         "scope": "openid",
                         "binding_message": short_binding,
                         "authorization_details": authorization_details,
-                        "request": f"Approve AI response about {topic}: '{proposed_response[:80]}...'",
                     },
                     timeout=15
                 )
@@ -170,14 +175,19 @@ class Auth0Client:
                     }
                 return {
                     "auth_req_id": f"demo_ciba_{os.urandom(6).hex()}",
-                    "expires_in": 300, "interval": 5, "demo_mode": True,
+                    "expires_in": 300,
+                    "interval": 5,
+                    "demo_mode": True,
                     "error": response.text,
                     "rar_details": {"topic": topic, "proposed_response": proposed_response[:100]}
                 }
         except Exception as e:
             return {
                 "auth_req_id": f"demo_ciba_{os.urandom(6).hex()}",
-                "expires_in": 300, "interval": 5, "demo_mode": True, "error": str(e),
+                "expires_in": 300,
+                "interval": 5,
+                "demo_mode": True,
+                "error": str(e),
                 "rar_details": {"topic": topic, "proposed_response": proposed_response[:100]}
             }
 
