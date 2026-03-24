@@ -11,89 +11,119 @@
 
   :root {
     --bg: #000000;
-    --surface: #0a0a0f;
-    --surface2: #111118;
-    --border: #1A1A1A;
-    --border2: #222222;
+    --surface: rgba(15, 15, 15, 0.4);
+    --surface2: rgba(25, 25, 25, 0.5);
+    --border: #1F1F1F;
+    --border2: rgba(255, 255, 255, 0.08);
     --text: #ffffff;
-    --muted: #888888;
+    --text-dim: #FFFFFF99;
+    --muted: rgba(255, 255, 255, 0.4);
     --accent: #8B5CF6;
-    --accent2: #a594f9;
-    --green: #34d399;
-    --amber: #fbbf24;
-    --red: #f87171;
-    --glow: rgba(139,92,246,0.12);
+    --accent-glow: rgba(139, 92, 246, 0.3);
+    --glass-blur: blur(24px) saturate(140%);
   }
 
-  html, body { background: var(--bg); font-family: 'Geist Sans', sans-serif; color: var(--text); min-height: 100vh; font-weight: 300; }
+  html, body {
+    background: var(--bg);
+    font-family: 'Geist Sans', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    font-weight: 300;
+  }
 
   body::after {
     content: '';
     position: fixed;
     top: -200px; left: 50%;
     transform: translateX(-50%);
-    width: 600px; height: 400px;
-    background: radial-gradient(ellipse, rgba(124,106,247,0.07) 0%, transparent 70%);
+    width: 800px; height: 500px;
+    background: radial-gradient(ellipse, rgba(139,92,246,0.1) 0%, transparent 60%);
     pointer-events: none; z-index: 0;
   }
 
-  .container { max-width: 720px; margin: 0 auto; padding: 60px 24px 80px; position: relative; z-index: 1; }
+  .container { max-width: 860px; margin: 0 auto; padding: 100px 40px 140px; position: relative; z-index: 1; }
 
-  .hero { margin-bottom: 52px; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulseLabel {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .hero { margin-bottom: 80px; animation: fadeUp 0.8s ease-out; }
 
   .wordmark {
-    font-size: 12px; font-family: 'Geist Mono', monospace; color: var(--accent); font-weight: 500;
-    letter-spacing: 0.15em; margin-bottom: 20px;
-    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; font-family: 'Geist Mono', monospace; color: var(--accent); font-weight: 500;
+    letter-spacing: 0.15em; margin-bottom: 24px; text-transform: lowercase;
+    display: flex; align-items: center; gap: 12px;
   }
-  .wordmark::before { content:''; width:24px; height:1px; background:var(--accent); }
+  .wordmark::before { content:''; width:32px; height:1px; background:var(--accent); }
 
-  h1 { font-family: 'Geist Sans', sans-serif; font-size: clamp(40px, 8vw, 64px); font-weight: 900; line-height: 1.0; letter-spacing: -0.04em; margin-bottom: 18px; }
+  h1 { font-family: 'Geist Sans', sans-serif; font-size: clamp(48px, 8vw, 76px); font-weight: 900; line-height: 1.0; letter-spacing: -0.05em; margin-bottom: 24px; }
   h1 em { font-style: normal; color: var(--accent); }
 
-  .hero-sub { font-size: 16px; font-weight: 300; color: var(--text); opacity: 0.7; line-height: 1.6; max-width: 480px; }
+  .hero-sub { font-size: 18px; font-weight: 300; color: var(--text-dim); line-height: 1.6; max-width: 520px; }
 
-  .section { margin-bottom: 32px; }
+  .section { 
+    margin-bottom: 64px; 
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .section:nth-child(2) { animation-delay: 0.1s; }
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+  .section:nth-child(6) { animation-delay: 0.5s; }
 
   .section-label {
-    font-size: 12px; font-family: 'Geist Mono', monospace; font-weight: 500; color: var(--muted);
-    letter-spacing: 0.05em; margin-bottom: 14px; text-transform: lowercase;
-    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; font-family: 'Geist Mono', monospace; font-weight: 500; color: var(--text-dim);
+    letter-spacing: 0.05em; margin-bottom: 20px; text-transform: lowercase;
+    display: flex; align-items: center; gap: 12px; transition: color 0.3s ease;
   }
+  .section-label:hover { animation: pulseLabel 1.5s infinite; color: #fff; }
   .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
-  .field { margin-bottom: 12px; }
-  .field label { display:block; font-size:12px; font-weight:500; color:var(--muted); font-family:'Geist Mono',monospace; margin-bottom:5px; text-transform: lowercase; }
+  .field { margin-bottom: 16px; }
+  .field label { display:block; font-size:12px; font-weight:500; color:var(--text-dim); font-family:'Geist Mono',monospace; margin-bottom:8px; text-transform: lowercase; transition: opacity 0.3s ease; }
+  .field label:hover { animation: pulseLabel 1.5s infinite; }
 
   .field input, .field textarea, .field select {
-    width:100%; background:var(--surface); border:1px solid var(--border2);
-    border-radius:6px; padding:11px 14px; color:var(--text); font-size:14px;
-    font-family:'Geist Sans',sans-serif; font-weight:400; outline:none; transition:border-color 0.2s;
-    appearance: none;
+    width:100%; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:16px 20px; color:var(--text); font-size:15px;
+    font-family:'Geist Sans',sans-serif; font-weight:400; outline:none; transition:all 0.3s ease;
+    appearance: none; backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
-  .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); }
-  .field textarea { resize:vertical; min-height:70px; }
+  .field input::placeholder, .field textarea::placeholder { font-family: 'Geist Mono', monospace; font-weight: 500; color: rgba(255,255,255,0.3); }
+  .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--accent); box-shadow:0 0 20px rgba(139,92,246,0.15), inset 0 0 0 1px var(--accent); background:rgba(139,92,246,0.02); }
+  .field textarea { resize:vertical; min-height:80px; }
 
   /* FGA Role selector */
   .role-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 12px;
   }
 
   .role-card {
     background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
+    backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    opacity: 0.5;
   }
-  .role-card:hover { border-color: var(--border); }
+  .role-card:hover { border-color: var(--border2); opacity: 0.9; }
   .role-card.selected {
-    border-color: var(--text);
-    background: var(--surface2);
+    opacity: 1;
+    border-color: var(--accent);
+    background: rgba(139,92,246,0.04);
+    box-shadow: 0 0 24px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.05);
+    transform: scale(1.02);
   }
 
   .role-card-header {
@@ -103,19 +133,20 @@
 
   .role-name { font-size: 13px; font-weight: 500; font-family: 'Geist Mono', monospace; text-transform: lowercase; }
   .role-check {
-    width: 16px; height: 16px; border-radius: 50%;
-    border: 1.5px solid var(--border2);
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--border2);
     display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .role-card.selected .role-check {
-    background: var(--accent);
+    background: rgba(139,92,246,0.2);
     border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
   }
-  .role-check::after { content:''; width:6px; height:6px; border-radius:50%; background:var(--bg); opacity:0; transition:opacity 0.2s; }
-  .role-card.selected .role-check::after { opacity:1; }
+  .role-check::after { content:''; width:8px; height:8px; border-radius:50%; background:var(--accent); opacity:0; transition:opacity 0.2s, transform 0.2s; transform:scale(0.5); }
+  .role-card.selected .role-check::after { opacity:1; transform:scale(1); }
 
-  .role-desc { font-size:11px; color:var(--muted); font-family:'Geist Mono',monospace; line-height:1.4; }
+  .role-desc { font-size:12px; color:var(--text-dim); font-family:'Geist Sans',sans-serif; line-height:1.5; font-weight:300; }
 
   .role-topics {
     margin-top: 8px;
@@ -124,173 +155,203 @@
 
   .topic-tag {
     font-size: 10px; font-family: 'Geist Mono', monospace; font-weight: 500;
-    padding: 2px 6px; border-radius: 4px;
-    background: var(--surface2);
-    border: 1px solid var(--border2);
-    color: var(--text);
+    padding: 4px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--text-dim); transition: all 0.3s;
   }
+  .role-card.selected .topic-tag { border-color: rgba(139,92,246,0.4); color: var(--accent); background: rgba(139,92,246,0.1); }
 
   /* Category toggles */
-  .categories { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .categories { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
   .category-toggle {
-    background:var(--surface); border:1px solid var(--border2); border-radius:6px;
-    padding:12px 14px; cursor:pointer; transition:all 0.2s;
-    display:flex; align-items:center; gap:10px; user-select:none;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:16px 20px; cursor:pointer; transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display:flex; align-items:center; gap:16px; user-select:none;
+    backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    opacity: 0.5;
   }
-  .category-toggle:hover { border-color:var(--border); }
-  .category-toggle.on { border-color:var(--accent); background:rgba(139,92,246,0.08); }
+  .category-toggle:hover { opacity: 0.9; border-color:var(--border2); }
+  .category-toggle.on { 
+    opacity: 1; border-color:var(--accent); background:rgba(139,92,246,0.06); 
+    box-shadow: inset 0 0 24px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
 
   .toggle-indicator {
-    width:28px; height:16px; border-radius:8px;
-    background:var(--border2); position:relative; transition:background 0.2s; flex-shrink:0;
+    width:36px; height:20px; border-radius:10px;
+    background:var(--surface2); border: 1px solid var(--border2); position:relative; transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1); flex-shrink:0;
   }
-  .category-toggle.on .toggle-indicator { background:var(--accent); }
+  .category-toggle.on .toggle-indicator { background:var(--accent); border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
   .toggle-indicator::after {
     content:''; position:absolute; top:2px; left:2px;
-    width:12px; height:12px; border-radius:50%;
-    background:var(--bg); transition:transform 0.2s;
+    width:14px; height:14px; border-radius:50%;
+    background:var(--text-dim); transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .category-toggle.on .toggle-indicator::after { transform:translateX(12px); background:var(--text); }
+  .category-toggle.on .toggle-indicator::after { transform:translateX(16px); background:#fff; box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+  
   .cat-info { flex:1; }
-  .cat-name { font-size:13px; font-weight:500; font-family:'Geist Mono',monospace; text-transform: lowercase; }
-  .cat-desc { font-size:11px; color:var(--muted); font-family:'Geist Sans',sans-serif; margin-top:2px; }
+  .cat-name { font-size:14px; font-weight:500; font-family:'Geist Mono',monospace; text-transform: lowercase; }
+  .cat-desc { font-size:12px; color:var(--text-dim); font-family:'Geist Sans',sans-serif; margin-top:4px; font-weight: 300; }
 
   /* Confidence slider */
   .confidence-row {
     background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
 
   .confidence-header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 24px;
   }
 
-  .confidence-label { font-size: 13px; font-weight: 500; font-family: 'Geist Mono', monospace; text-transform: lowercase; }
+  .confidence-label { font-size: 13px; font-weight: 500; font-family: 'Geist Mono', monospace; text-transform: lowercase; color: var(--text-dim); }
   .confidence-value {
-    font-size: 16px; font-weight: 900;
-    color: var(--text); font-family: 'Geist Mono', monospace;
+    font-size: 24px; font-weight: 900;
+    color: var(--text); font-family: 'Geist Mono', monospace; text-shadow: 0 0 16px rgba(255,255,255,0.2);
   }
 
-  .confidence-desc { font-size: 11px; color: var(--muted); font-family: 'Geist Sans', sans-serif; margin-bottom: 10px; }
+  .confidence-desc { font-size: 12px; color: var(--text-dim); font-family: 'Geist Sans', sans-serif; font-weight: 300; }
 
   input[type=range] {
-    width: 100%; accent-color: var(--accent);
-    background: transparent; cursor: pointer;
+    width: 100%; height: 4px; border-radius: 2px;
+    background: var(--border2); outline: none; -webkit-appearance: none; appearance: none;
   }
-  
-  .slider-container { position: relative; width: 100%; margin: 24px 0; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    box-shadow: 0 0 16px var(--accent-glow), inset 0 0 6px rgba(255,255,255,0.4);
+    transition: transform 0.2s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); box-shadow: 0 0 24px var(--accent-glow), inset 0 0 8px rgba(255,255,255,0.6); }
+
+  .slider-container { position: relative; width: 100%; margin: 32px 0 24px; }
   .slider-tooltip {
     position: absolute;
-    top: -30px;
+    top: -44px;
     transform: translateX(-50%);
-    background: var(--text);
-    border: 1px solid var(--border2);
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-size: 10px; font-weight: 500;
+    background: rgba(139,92,246,0.15);
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px; font-weight: 500;
     font-family: 'Geist Mono', monospace;
-    color: var(--bg);
+    color: #fff;
     white-space: nowrap;
+    backdrop-filter: var(--glass-blur);
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.2s;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: opacity 0.3s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     z-index: 10;
   }
   .slider-container:hover .slider-tooltip,
-  input[type=range]:active + .slider-tooltip {
-    opacity: 1;
-  }
+  input[type=range]:active + .slider-tooltip { opacity: 1; }
 
   .confidence-note {
-    margin-top: 8px;
-    font-size: 11px; color: var(--text); font-family: 'Geist Sans', sans-serif; font-weight: 300;
-    padding: 6px 10px;
-    background: var(--surface2);
-    border-radius: 4px;
+    margin-top: 16px;
+    font-size: 12px; color: var(--text-dim); font-family: 'Geist Sans', sans-serif; font-weight: 300;
+    padding: 12px 16px;
+    background: rgba(139,92,246,0.03);
+    border-radius: 8px;
     border-left: 2px solid var(--accent);
   }
 
   /* NL rules */
-  .nl-input-row { display:flex; gap:8px; }
+  .nl-input-row { display:flex; gap:12px; }
   .nl-input-row input {
-    flex:1; background:var(--surface); border:1px solid var(--border2);
-    border-radius:6px; padding:11px 14px; color:var(--text); font-size:14px;
-    font-family:'Geist Sans',sans-serif; font-weight:400; outline:none; transition:border-color 0.2s;
+    flex:1; background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:16px 20px; color:var(--text); font-size:15px;
+    font-family:'Geist Sans',sans-serif; font-weight:400; outline:none; transition:all 0.3s;
+    backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
-  .nl-input-row input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow); }
+  .nl-input-row input::placeholder { font-family: 'Geist Mono', monospace; font-weight: 500; color: rgba(255,255,255,0.3); }
+  .nl-input-row input:focus { border-color:var(--accent); box-shadow:0 0 20px rgba(139,92,246,0.15), inset 0 0 0 1px var(--accent); }
 
   .btn-add {
-    background:var(--surface2); border:1px solid var(--border2); border-radius:6px;
-    padding:11px 16px; color:var(--text); font-size:13px;
-    font-family:'Geist Sans',sans-serif; font-weight:500; cursor:pointer; transition:all 0.2s; white-space:nowrap;
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    padding:16px 24px; color:var(--text); font-size:14px; text-transform: lowercase;
+    font-family:'Geist Mono',monospace; font-weight:500; cursor:pointer; transition:all 0.3s; white-space:nowrap;
+    backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
   }
-  .btn-add:hover { background:rgba(124,106,247,0.2); }
+  .btn-add:hover { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.1); }
 
-  .nl-rules-list { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .nl-rules-list { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
 
   .nl-rule-tag {
-    background:var(--surface2); border:1px solid var(--border2); border-radius:4px;
-    padding:8px 12px; font-size:12px; font-family:'Geist Mono',monospace; color:var(--text);
-    display:flex; align-items:center; gap:8px;
-    animation: fadeIn 0.2s ease;
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:12px 16px; font-size:13px; font-family:'Geist Mono',monospace; color:var(--text);
+    display:flex; align-items:center; gap:12px; backdrop-filter: var(--glass-blur);
+    animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
 
   .rule-status {
-    font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700;
+    font-size:10px; padding:4px 8px; border-radius:4px; font-weight:700;
   }
-  .rule-status.allow { background:rgba(52,211,153,0.15); color:var(--green); }
-  .rule-status.deny { background:rgba(248,113,113,0.15); color:var(--red); }
+  .rule-status.allow { background:rgba(52,211,153,0.1); color:var(--green); border: 1px solid rgba(52,211,153,0.2); }
+  .rule-status.deny { background:rgba(248,113,113,0.1); color:var(--red); border: 1px solid rgba(248,113,113,0.2); }
 
-  .nl-rule-tag button { margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; }
+  .nl-rule-tag button { margin-left:auto; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:16px; transition: color 0.3s; }
   .nl-rule-tag button:hover { color:var(--red); }
 
   /* Launch */
-  .launch-section { margin-top:44px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .launch-section { margin-top:64px; display:flex; flex-direction:column; align-items:center; gap:20px; position:relative; }
+
+  .btn-launch-wrapper { position: relative; width: 100%; border-radius: 12px; }
+  .btn-launch-glow {
+    position: absolute; inset: -2px; background: var(--accent); border-radius: 14px;
+    filter: blur(8px); opacity: 0.3; transition: all 0.4s; z-index: 0;
+  }
+  .btn-launch-wrapper:hover .btn-launch-glow { opacity: 0.8; filter: blur(14px); }
 
   .btn-launch {
-    width:100%; background:var(--text); border:1px solid var(--border2); border-radius:6px;
-    padding:18px; color:var(--bg); font-size:16px; font-family:'Geist Sans',sans-serif; font-weight:500;
-    letter-spacing:-0.01em; cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden;
+    position: relative; z-index: 1;
+    width:100%; background:var(--accent); border:1px solid rgba(255,255,255,0.1); border-radius:12px;
+    padding:24px; color:#fff; font-size:18px; font-family:'Geist Sans',sans-serif; font-weight:700;
+    letter-spacing:-0.01em; cursor:pointer; transition:all 0.4s; overflow:hidden;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,0.15), 0 8px 32px rgba(139,92,246,0.3);
   }
-  .btn-launch:hover { background: #ffffff; box-shadow:0 0 0 2px var(--glow); }
+  .btn-launch:hover { background: #9b72f7; transform: translateY(-2px); box-shadow: inset 0 2px 0 rgba(255,255,255,0.2), 0 12px 48px rgba(139,92,246,0.5); }
 
-  .launch-note { font-size:12px; font-family:'Geist Mono',monospace; color:var(--muted); text-align:center; line-height:1.6; }
+  .launch-note { font-size:12px; font-family:'Geist Mono',monospace; color:var(--text-dim); text-align:center; line-height:1.6; }
 
-  .session-display { background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:16px; width:100%; display:none; }
-  .session-display.visible { display:block; animation:fadeIn 0.3s ease; }
-  .session-url { font-family:'Geist Mono',monospace; font-size:12px; color:var(--text); word-break:break-all; margin-bottom:12px; }
-  .session-actions { display:flex; gap:8px; }
+  .session-display { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; width:100%; display:none; backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }
+  .session-display.visible { display:block; animation:fadeUp 0.6s ease; }
+  .session-url { font-family:'Geist Mono',monospace; font-size:13px; color:var(--text); word-break:break-all; margin-bottom:16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 6px; border: 1px solid var(--border2); }
+  .session-actions { display:flex; gap:12px; }
 
   .btn-open {
-    flex:1; background:var(--accent); border:1px solid var(--accent); border-radius:4px;
-    padding:9px; color:var(--bg); font-family:'Geist Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s;
+    flex:1; background:var(--accent); border:1px solid var(--accent); border-radius:8px;
+    padding:12px; color:#fff; font-family:'Geist Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.3s;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 16px rgba(139,92,246,0.2);
   }
-  .btn-open:hover { opacity:0.9; }
+  .btn-open:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 8px 24px rgba(139,92,246,0.3); }
 
   .btn-copy {
-    background:none; border:1px solid var(--border2); border-radius:4px; padding:9px 14px;
-    color:var(--text); font-family:'Geist Mono',monospace; font-size:12px; font-weight:500; cursor:pointer; transition:all 0.2s;
+    background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px 20px;
+    color:var(--text); font-family:'Geist Mono',monospace; font-size:13px; font-weight:500; cursor:pointer; transition:all 0.3s;
   }
+  .btn-copy:hover { background:rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
 
   .fga-info {
-    margin-top: 8px;
-    background: var(--surface2);
-    border-radius: 4px;
-    padding: 10px 12px;
-    font-size: 11px;
+    margin-top: 12px;
+    background: rgba(139,92,246,0.05);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
     font-family: 'Geist Sans', sans-serif;
     font-weight: 300;
     color: var(--text);
-    border-left: 2px solid var(--accent);
+    border-left: 3px solid var(--accent);
     display: none;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.4s ease;
+    backdrop-filter: var(--glass-blur);
   }
   .fga-info.visible { display: block; }
   .fga-info.fade-in { opacity: 1; }
@@ -441,7 +502,10 @@
 
   <!-- Launch -->
   <div class="launch-section">
-    <button class="btn-launch" onclick="launch()">Launch Proxy Me overlay →</button>
+    <div class="btn-launch-wrapper">
+      <div class="btn-launch-glow"></div>
+      <button class="btn-launch" onclick="launch()">Launch Proxy Me overlay →</button>
+    </div>
     <div class="launch-note">Opens a floating overlay to position over your meeting window.<br>Your mic is only accessed when you hit START.</div>
     <div class="session-display" id="session-display">
       <div class="session-url" id="session-url"></div>
