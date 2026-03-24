@@ -82,7 +82,6 @@ async def update_rules(session_id: str, rules: list[PermissionRule]):
 
 @app.post("/api/session/{session_id}/role")
 async def set_role(session_id: str, request: Request):
-    """Set FGA role for this session."""
     body = await request.json()
     role = body.get("role", "custom")
     if session_id not in active_sessions:
@@ -99,7 +98,6 @@ async def set_role(session_id: str, request: Request):
 
 @app.post("/api/session/{session_id}/confidence")
 async def set_confidence_threshold(session_id: str, request: Request):
-    """Set confidence threshold for auto-approval."""
     body = await request.json()
     threshold = float(body.get("threshold", 0.7))
     if session_id not in active_sessions:
@@ -120,7 +118,6 @@ async def add_nl_rule(session_id: str, request: Request):
 
 @app.get("/api/fga/roles")
 async def get_fga_roles():
-    """Return all available FGA roles."""
     return auth0_client.get_fga_roles()
 
 
@@ -128,20 +125,14 @@ async def get_fga_roles():
 
 @app.get("/audit/{session_id}", response_class=HTMLResponse)
 async def audit_page(request: Request, session_id: str):
-    """Shareable audit log URL for a session."""
     log = audit_logs.get(session_id, [])
     return templates.TemplateResponse("summary.html", {"request": request, "audit_log": log})
 
 
 @app.get("/api/audit/{session_id}")
 async def get_audit_log(session_id: str):
-    """Return full audit log for a session as JSON."""
     log = audit_logs.get(session_id, [])
-    return {
-        "session_id": session_id,
-        "total_events": len(log),
-        "log": log
-    }
+    return {"session_id": session_id, "total_events": len(log), "log": log}
 
 
 # ─── WebSocket ──────────────────────────────────────────────────────────────
@@ -164,7 +155,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 transcript_chunk = data.get("text", "").strip()
                 if not transcript_chunk:
                     continue
-
                 active_sessions[session_id]["transcript"].append(transcript_chunk)
                 asyncio.create_task(
                     process_transcript(websocket, session_id, transcript_chunk)
@@ -173,37 +163,91 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             elif msg_type == "approval_response":
                 approval_id = data.get("approval_id")
                 approved = data.get("approved", False)
+                # Resolve the pending event immediately — this is the overlay button path
                 if approval_id in pending_approvals:
                     approval_results[approval_id] = approved
                     pending_approvals[approval_id].set()
 
     except WebSocketDisconnect:
+        # Cancel all pending approvals for this session on disconnect
+        for approval_id, event in list(pending_approvals.items()):
+            approval_results[approval_id] = False
+            event.set()
+
+
+async def safe_send(websocket: WebSocket, lock: asyncio.Lock, payload: dict):
+    """Send a JSON message safely under the ws_lock."""
+    try:
+        async with lock:
+            await websocket.send_json(payload)
+    except Exception:
         pass
 
 
+async def poll_ciba_until_resolved(
+    auth_req_id: str,
+    approval_id: str,
+    interval: int,
+    timeout: int,
+) -> None:
+    """
+    Polls Auth0 /oauth/token for CIBA result (Guardian phone approval).
+    When the user taps Allow/Deny on their phone, this resolves the event
+    so the background task doesn't have to wait for the overlay button.
+    """
+    if auth_req_id.startswith("demo_ciba_"):
+        return  # demo mode — nothing to poll
+
+    elapsed = 0
+    while elapsed < timeout:
+        await asyncio.sleep(interval)
+        elapsed += interval
+
+        if approval_id not in pending_approvals:
+            return  # already resolved by overlay button
+
+        result = await auth0_client.poll_ciba(auth_req_id)
+        status = result.get("status")
+
+        if status == "approved":
+            approval_results[approval_id] = True
+            pending_approvals[approval_id].set()
+            return
+        elif status == "denied":
+            approval_results[approval_id] = False
+            pending_approvals[approval_id].set()
+            return
+        elif status == "error":
+            return  # give up, let overlay button or timeout handle it
+
+
 async def process_transcript(websocket: WebSocket, session_id: str, transcript: str):
-    """Process a transcript chunk in a background task."""
+    """Process a transcript chunk — classify, maybe generate, maybe ask for approval."""
     if session_id not in active_sessions:
         return
-    try:
-        async with active_sessions[session_id]["ws_lock"]:
-            await websocket.send_json({"type": "flow_ticker", "message": "[Token Vault] Fetching read:transcripts..."})
 
-        # Fetch a per-action scoped token from Token Vault for classification
+    ws_lock = active_sessions[session_id]["ws_lock"]
+
+    try:
+        await safe_send(websocket, ws_lock, {
+            "type": "flow_ticker",
+            "message": "[Token Vault] Fetching read:transcripts..."
+        })
+
         classify_token = await auth0_client.get_scoped_token(
             action="classify_transcript",
             scope="read:transcripts"
         )
 
-        async with active_sessions[session_id]["ws_lock"]:
-            await websocket.send_json({"type": "flow_ticker", "message": "[Permission Engine] Checking FGA / Rules..."})
+        await safe_send(websocket, ws_lock, {
+            "type": "flow_ticker",
+            "message": "[Permission Engine] Checking FGA / Rules..."
+        })
 
         check = await permission_engine.check(session_id, transcript, auth0_client)
 
-        # Log the classification event
         audit_event = {
-            "type": "classify",
-            "transcript": transcript[:100],
+            "transcript": transcript,
             "topic": check.get("topic"),
             "allowed": check.get("allowed"),
             "layer": check.get("layer"),
@@ -214,19 +258,26 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
             "vault_sourced": classify_token.get("vault_sourced", False),
         }
 
+        # ── Auto-approved path ───────────────────────────────────────────────
         if check["allowed"]:
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({"type": "flow_ticker", "message": f"[FGA Check] Allowed ({check.get('layer')})"})
-                await websocket.send_json({"type": "flow_ticker", "message": "[Token Vault] Fetching write:suggestions..."})
+            await safe_send(websocket, ws_lock, {
+                "type": "flow_ticker",
+                "message": f"[FGA Check] Allowed ({check.get('layer')})"
+            })
+            await safe_send(websocket, ws_lock, {
+                "type": "flow_ticker",
+                "message": "[Token Vault] Fetching write:suggestions..."
+            })
 
-            # Fetch per-action token for response generation
             gen_token = await auth0_client.get_scoped_token(
                 action="generate_response",
                 scope="write:suggestions"
             )
 
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({"type": "flow_ticker", "message": "[Groq AI] Generating response..."})
+            await safe_send(websocket, ws_lock, {
+                "type": "flow_ticker",
+                "message": "[Groq AI] Generating response..."
+            })
 
             response = await groq_agent.generate_response(
                 transcript,
@@ -238,9 +289,8 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
             audit_event.update({"response_generated": True, "gen_token_scope": gen_token.get("scope")})
             audit_logs[session_id].append(audit_event)
 
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({
-                    "type": "suggestion",
+            await safe_send(websocket, ws_lock, {
+                "type": "suggestion",
                 "text": response,
                 "topic": check.get("topic", "general"),
                 "confidence": check.get("confidence", 0.9),
@@ -251,10 +301,16 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
                 "approved": True,
             })
 
+        # ── Approval required path ───────────────────────────────────────────
         else:
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({"type": "flow_ticker", "message": f"[FGA Check] Denied ({check.get('layer')})"})
-                await websocket.send_json({"type": "flow_ticker", "message": "[Groq AI] Generating preview..."})
+            await safe_send(websocket, ws_lock, {
+                "type": "flow_ticker",
+                "message": f"[FGA Check] Denied ({check.get('layer')})"
+            })
+            await safe_send(websocket, ws_lock, {
+                "type": "flow_ticker",
+                "message": "[Groq AI] Generating preview..."
+            })
 
             approval_id = os.urandom(6).hex()
             pending_approvals[approval_id] = asyncio.Event()
@@ -266,12 +322,19 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
                 active_sessions[session_id]["transcript"]
             )
 
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({"type": "flow_ticker", "message": "[CIBA] Initiating Step-up Auth (RAR)..."})
+            await safe_send(websocket, ws_lock, {
+                "type": "flow_ticker",
+                "message": "[CIBA] Initiating Step-up Auth (RAR)..."
+            })
 
-            # Initiate CIBA with RAR
+            # Use AUTH0_USER_EMAIL env var — must be the enrolled Guardian user's email
+            user_email = os.getenv(
+                "AUTH0_USER_EMAIL",
+                active_sessions[session_id].get("config", {}).get("user_email", "")
+            )
+
             ciba_result = await auth0_client.initiate_ciba_with_rar(
-                user_id=os.getenv("AUTH0_USER_ID", active_sessions[session_id].get("config", {}).get("user_id", "demo_user")),
+                user_id=user_email,   # ← email, not auth0|xxx ID
                 topic=check.get("topic", "sensitive"),
                 proposed_response=preview,
                 binding_message=f"ProxyMe approval needed"
@@ -285,9 +348,8 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
             })
             audit_logs[session_id].append(audit_event)
 
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({
-                    "type": "approval_required",
+            await safe_send(websocket, ws_lock, {
+                "type": "approval_required",
                 "approval_id": approval_id,
                 "topic": check.get("topic", "sensitive"),
                 "question": transcript,
@@ -300,9 +362,23 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
                 "rar_details": ciba_result.get("rar_details", {}),
             })
 
-            # Wait for approval
+            # Start CIBA polling in background so phone approval also resolves the event
+            auth_req_id = ciba_result.get("auth_req_id", "demo_ciba_")
+            ciba_poll_task = asyncio.create_task(
+                poll_ciba_until_resolved(
+                    auth_req_id=auth_req_id,
+                    approval_id=approval_id,
+                    interval=ciba_result.get("interval", 5),
+                    timeout=ciba_result.get("expires_in", 300),
+                )
+            )
+
+            # Wait for EITHER the overlay button OR the Guardian phone tap
             try:
-                await asyncio.wait_for(pending_approvals[approval_id].wait(), timeout=30)
+                await asyncio.wait_for(
+                    pending_approvals[approval_id].wait(),
+                    timeout=60  # hard ceiling regardless of CIBA expiry
+                )
                 approved = approval_results.get(approval_id, False)
 
                 audit_logs[session_id].append({
@@ -313,9 +389,8 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
                 })
 
                 if approved:
-                    async with active_sessions[session_id]["ws_lock"]:
-                        await websocket.send_json({
-                            "type": "suggestion",
+                    await safe_send(websocket, ws_lock, {
+                        "type": "suggestion",
                         "text": preview,
                         "topic": check.get("topic"),
                         "approved": True,
@@ -325,27 +400,28 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
                         "layer": "ciba_approved",
                     })
                 else:
-                    async with active_sessions[session_id]["ws_lock"]:
-                        await websocket.send_json({
-                            "type": "denied",
+                    # Decline — send immediately, no lock contention
+                    await safe_send(websocket, ws_lock, {
+                        "type": "denied",
                         "approval_id": approval_id,
                         "message": "You chose to handle this yourself.",
                     })
+
             except asyncio.TimeoutError:
-                async with active_sessions[session_id]["ws_lock"]:
-                    await websocket.send_json({
-                        "type": "timeout",
+                await safe_send(websocket, ws_lock, {
+                    "type": "timeout",
                     "approval_id": approval_id,
                     "message": "Approval timed out — handle this one yourself.",
                 })
             finally:
+                # Always clean up — this is what was missing for the stuck decline
+                ciba_poll_task.cancel()
                 pending_approvals.pop(approval_id, None)
                 approval_results.pop(approval_id, None)
 
     except Exception as e:
         try:
-            async with active_sessions[session_id]["ws_lock"]:
-                await websocket.send_json({"type": "error", "message": str(e)})
+            await safe_send(websocket, ws_lock, {"type": "error", "message": str(e)})
         except Exception:
             pass
 
@@ -375,7 +451,7 @@ async def get_summary(session_id: str, request: Request):
         for e in log
     ])
     used = len([e for e in log if e.get('type') == 'use'])
-    approved = len([e for e in log if e.get('type') == 'approve'])
+    approved = len([e for e in log if e.get('approved')])
     denied = len([e for e in log if e.get('type') == 'deny'])
     topics = list(set([e.get('topic') for e in log if e.get('topic') and e.get('topic') != '—']))
 

@@ -151,7 +151,7 @@ class Auth0Client:
                     data={
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
-                        "login_hint": json.dumps({"format": "iss_sub", "iss": f"https://{self.domain}/", "sub": user_id}),
+                        "login_hint": user_id,
                         "scope": "openid",
                         "binding_message": short_binding,
                         "authorization_details": authorization_details,
