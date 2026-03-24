@@ -34,11 +34,26 @@
   body::after {
     content: '';
     position: fixed;
-    top: -200px; left: 50%;
-    transform: translateX(-50%);
-    width: 800px; height: 500px;
-    background: radial-gradient(ellipse, rgba(139,92,246,0.1) 0%, transparent 60%);
+    top: 0; left: 0; right: 0; bottom: 0;
     pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse at 50% -20%, rgba(139,92,246,0.15) 0%, transparent 70%);
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 64px 64px;
+    animation: panDataGrid 20s linear infinite;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+    opacity: 0.6;
+  }
+  @keyframes panDataGrid {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(64px); }
   }
 
   .container { max-width: 860px; margin: 0 auto; padding: 100px 40px 140px; position: relative; z-index: 1; }

@@ -4,316 +4,299 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Proxy Me — Meeting Summary</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-sans/style.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-mono/style.css" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0a0a0f;
-    --surface: #111118;
-    --surface2: #1a1a24;
-    --border: rgba(255,255,255,0.07);
-    --border2: rgba(255,255,255,0.12);
-    --text: #e8e8f0;
-    --muted: #6b6b80;
-    --accent: #7c6af7;
-    --accent2: #a594f9;
-    --green: #34d399;
-    --amber: #fbbf24;
-    --red: #f87171;
-    --glow: rgba(124,106,247,0.1);
+    --bg: #000000;
+    --surface: rgba(15, 15, 15, 0.4);
+    --surface2: rgba(25, 25, 25, 0.5);
+    --border: #1F1F1F;
+    --border2: rgba(255, 255, 255, 0.08);
+    --text: #ffffff; --text-dim: #FFFFFF99;
+    --muted: rgba(255, 255, 255, 0.4);
+    --accent: #8B5CF6; --accent2: #ffffff;
+    --green: #34d399; --amber: #fbbf24; --red: #f87171;
+    --glow: rgba(139,92,246,0.3);
+    --glass-blur: blur(24px) saturate(140%);
   }
 
   html, body {
     background: var(--bg);
-    font-family: 'Syne', sans-serif;
+    font-family: 'Geist Sans', sans-serif;
     color: var(--text);
     min-height: 100vh;
+    font-weight: 300;
   }
 
   body::after {
-    content: '';
-    position: fixed;
-    top: -200px; left: 50%;
-    transform: translateX(-50%);
-    width: 500px; height: 400px;
-    background: radial-gradient(ellipse, rgba(124,106,247,0.06) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
+    content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse at 50% -20%, rgba(139,92,246,0.1) 0%, transparent 70%);
   }
+  body::before {
+    content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 0;
+    background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 64px 64px;
+    animation: panDataGrid 20s linear infinite;
+    mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+    opacity: 0.6;
+  }
+  @keyframes panDataGrid { 0% { transform: translateY(0); } 100% { transform: translateY(64px); } }
 
   .container {
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
-    padding: 52px 24px 80px;
+    padding: 80px 40px 100px;
     position: relative;
     z-index: 1;
   }
 
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   /* Header */
   .page-header {
-    margin-bottom: 48px;
+    margin-bottom: 64px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 20px;
+    gap: 24px;
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
   .wordmark {
     font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    color: var(--accent2);
+    font-family: 'Geist Mono', monospace;
+    color: var(--accent);
     letter-spacing: 0.15em;
-    margin-bottom: 12px;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    text-transform: lowercase;
   }
-  .wordmark::before { content:''; width:20px; height:1px; background:var(--accent); }
+  .wordmark::before { content:''; width:32px; height:1px; background:var(--accent); }
 
   h1 {
-    font-size: 36px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    font-family: 'Geist Sans', sans-serif;
+    font-size: clamp(48px, 8vw, 76px);
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 1.0;
+    margin-bottom: 12px;
   }
 
   .session-meta {
     font-size: 12px;
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-    margin-top: 8px;
+    font-family: 'Geist Mono', monospace;
+    color: var(--text-dim);
+    margin-top: 12px;
   }
 
   .btn-export {
-    background: var(--glow);
-    border: 1px solid rgba(124,106,247,0.3);
-    border-radius: 10px;
-    padding: 10px 18px;
-    color: var(--accent2);
-    font-size: 13px;
-    font-family: 'Syne', sans-serif;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Geist Sans', sans-serif;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
     flex-shrink: 0;
+    backdrop-filter: var(--glass-blur);
   }
-  .btn-export:hover { background: rgba(124,106,247,0.18); }
+  .btn-export:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); transform: translateY(-1px); }
 
   /* Stats row */
   .stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 36px;
+    gap: 16px;
+    margin-bottom: 64px;
   }
 
   .stat-card {
     background: var(--surface);
-    border: 1px solid var(--border2);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px;
+    padding: 24px 16px;
     text-align: center;
+    backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
+  .stat-card:nth-child(1){animation-delay:0.1s} .stat-card:nth-child(2){animation-delay:0.2s}
+  .stat-card:nth-child(3){animation-delay:0.3s} .stat-card:nth-child(4){animation-delay:0.4s}
 
   .stat-number {
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin-bottom: 4px;
+    font-family: 'Geist Sans', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    margin-bottom: 8px;
   }
-  .stat-number.green { color: var(--green); }
-  .stat-number.purple { color: var(--accent2); }
-  .stat-number.amber { color: var(--amber); }
-  .stat-number.red { color: var(--red); }
+  .stat-number.green { color: var(--green); text-shadow: 0 0 16px rgba(52,211,153,0.3); }
+  .stat-number.purple { color: #fff; text-shadow: 0 0 16px rgba(255,255,255,0.3); } 
+  .stat-number.amber { color: var(--amber); text-shadow: 0 0 16px rgba(251,191,36,0.3); }
+  .stat-number.red { color: var(--red); text-shadow: 0 0 16px rgba(248,113,113,0.3); }
 
   .stat-label {
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-    letter-spacing: 0.08em;
+    font-size: 11px;
+    font-family: 'Geist Mono', monospace;
+    font-weight: 500;
+    text-transform: lowercase;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
   }
 
   /* Section */
-  .section { margin-bottom: 32px; }
+  .section { margin-bottom: 64px; animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: 0.5s; }
 
   .section-label {
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    margin-bottom: 14px;
+    font-size: 12px;
+    font-family: 'Geist Mono', monospace;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    margin-bottom: 24px;
+    text-transform: lowercase;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
   .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
   /* AI Summary box */
   .summary-box {
     background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 14px;
-    padding: 20px 22px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
     position: relative;
     overflow: hidden;
+    backdrop-filter: var(--glass-blur);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
 
   .summary-box::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, var(--accent), transparent);
   }
 
   .summary-loading {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
+    display: flex; align-items: center; gap: 12px; color: var(--text-dim);
+    font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500;
   }
 
   .loading-dots span {
-    display: inline-block;
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: var(--accent);
-    animation: ldot 1.2s ease-in-out infinite;
-    margin: 0 2px;
+    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); animation: ldot 1.2s ease-in-out infinite; margin: 0 3px;
   }
   .loading-dots span:nth-child(2){animation-delay:.2s}
   .loading-dots span:nth-child(3){animation-delay:.4s}
-  @keyframes ldot { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+  @keyframes ldot { 0%,80%,100%{opacity:0.2} 40%{opacity:1; box-shadow: 0 0 8px var(--accent);} }
 
   #summary-text {
-    font-size: 14px;
-    line-height: 1.8;
-    color: var(--text);
-    white-space: pre-wrap;
+    font-size: 15px; line-height: 1.8; color: var(--text); font-weight: 300; white-space: pre-wrap;
   }
 
   /* Decision trail table */
-  .trail-table {
-    width: 100%;
-    border-collapse: collapse;
+  .trail-table-wrapper {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
+  .trail-table { width: 100%; border-collapse: collapse; }
 
   .trail-table th {
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-align: left;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border2);
-    font-weight: 500;
+    font-size: 11px; font-family: 'Geist Mono', monospace; color: var(--text-dim);
+    letter-spacing: 0.05em; text-align: left; padding: 16px 20px;
+    border-bottom: 1px solid var(--border); font-weight: 500; text-transform: lowercase;
   }
 
   .trail-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    vertical-align: middle;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    font-size: 14px; vertical-align: middle; font-weight: 300;
   }
 
   .trail-table tr:last-child td { border-bottom: none; }
-  .trail-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-  .trail-table .td-time {
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .trail-table .td-text {
-    color: var(--text);
-    max-width: 300px;
-  }
+  
+  /* Cascading Row Animation */
+  #trail-body tr { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+  #trail-body tr:hover td { background: rgba(255,255,255,0.02); }
+  
+  .trail-table .td-time { font-family: 'Geist Mono', monospace; color: var(--text-dim); font-size: 12px; white-space: nowrap; }
+  .trail-table .td-text { color: var(--text); max-width: 380px; }
 
   .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 100px;
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    font-weight: 500;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px;
+    font-size: 11px; font-family: 'Geist Mono', monospace; font-weight: 500; white-space: nowrap; text-transform: lowercase;
   }
   .status-badge.approve { background: rgba(52,211,153,0.1); color:var(--green); border:1px solid rgba(52,211,153,0.25); }
-  .status-badge.deny { background: rgba(248,113,113,0.1); color:var(--red); border:1px solid rgba(248,113,113,0.25); }
-  .status-badge.use { background: rgba(124,106,247,0.1); color:var(--accent2); border:1px solid rgba(124,106,247,0.25); }
+  .status-badge.deny { background: rgba(255,255,255,0.05); color:var(--text-dim); border:1px solid rgba(255,255,255,0.1); }
+  .status-badge.use { background: rgba(139,92,246,0.1); color:var(--accent); border:1px solid rgba(139,92,246,0.25); }
   .status-badge.timeout { background: rgba(251,191,36,0.1); color:var(--amber); border:1px solid rgba(251,191,36,0.25); }
 
   .topic-pill {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 100px;
-    font-size: 10px;
-    font-family: 'DM Mono', monospace;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    color: var(--muted);
+    display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px;
+    font-family: 'Geist Mono', monospace; font-weight: 500; text-transform: lowercase;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text-dim);
   }
 
   /* Topics breakdown */
-  .topics-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
+  .topics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 
   .topic-card {
-    background: var(--surface);
-    border: 1px solid var(--border2);
-    border-radius: 10px;
-    padding: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: 0.6s;
   }
 
-  .topic-card-name {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    text-transform: capitalize;
-  }
+  .topic-card-name { font-size: 14px; font-weight: 600; margin-bottom: 12px; text-transform: lowercase; font-family: 'Geist Mono', monospace; }
 
   .topic-card-bar {
-    height: 3px;
-    background: var(--border2);
-    border-radius: 2px;
-    margin-bottom: 8px;
-    overflow: hidden;
+    height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-bottom: 12px; overflow: hidden;
   }
 
   .topic-card-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    transition: width 1s ease;
+    height: 100%; background: var(--accent); border-radius: 2px;
+    transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 0 12px var(--glow);
   }
 
-  .topic-card-count {
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    color: var(--muted);
-  }
+  .topic-card-count { font-size: 12px; font-family: 'Geist Mono', monospace; color: var(--text-dim); }
 
   /* Empty state */
   .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    border: 1px dashed var(--border2);
-    border-radius: 12px;
+    text-align: center; padding: 48px 20px; color: var(--text-dim);
+    font-family: 'Geist Mono', monospace; font-size: 14px;
+    border: 1px dashed var(--border); border-radius: 16px; grid-column: span 3;
+  }
+  
+  /* Print Stylesheet Overrides */
+  @media print {
+    html, body {
+      background: #000000 !important; background-color: #000000 !important; color: #ffffff !important;
+      -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+    }
+    body::before, body::after { display: none !important; }
+    .btn-export { display: none !important; }
+    .container { padding: 40px !important; max-width: 100% !important; }
+    .stat-card, .summary-box, .topic-card, .trail-table-wrapper {
+      background-color: #111111 !important; border: 1px solid #222222 !important; box-shadow: none !important;
+      page-break-inside: avoid;
+    }
+    .topic-card-fill { background-color: #8B5CF6 !important; }
+    h1 { font-size: 48px !important; }
   }
 </style>
 </head>
@@ -374,18 +357,18 @@
   <!-- Decision trail -->
   <div class="section">
     <div class="section-label">full decision trail</div>
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;overflow:hidden;">
+    <div class="trail-table-wrapper">
       <table class="trail-table" id="trail-table">
         <thead>
           <tr>
-            <th>TIME</th>
-            <th>ACTION</th>
-            <th>TOPIC</th>
-            <th>DETAIL</th>
+            <th>time</th>
+            <th>action</th>
+            <th>topic</th>
+            <th>detail</th>
           </tr>
         </thead>
         <tbody id="trail-body">
-          <tr><td colspan="4" style="text-align:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;padding:20px">No decisions recorded</td></tr>
+          <tr><td colspan="4" style="text-align:center;color:var(--text-dim);font-family:'Geist Mono',monospace;font-size:12px;padding:32px">No decisions recorded</td></tr>
         </tbody>
       </table>
     </div>
@@ -408,10 +391,10 @@ function init() {
   const denied = log.filter(l => l.type === 'deny').length;
   const topicSet = new Set(log.map(l => l.topic).filter(t => t && t !== '—'));
 
-  document.getElementById('stat-suggestions').textContent = used;
-  document.getElementById('stat-approved').textContent = approved;
-  document.getElementById('stat-denied').textContent = denied;
-  document.getElementById('stat-topics').textContent = topicSet.size;
+  animateValue('stat-suggestions', 0, used, 800);
+  animateValue('stat-approved', 0, approved, 800);
+  animateValue('stat-denied', 0, denied, 800);
+  animateValue('stat-topics', 0, topicSet.size, 800);
 
   // Topics grid
   if (topicSet.size > 0) {
@@ -437,8 +420,8 @@ function init() {
   // Decision trail
   if (log.length > 0) {
     const tbody = document.getElementById('trail-body');
-    tbody.innerHTML = log.map(entry => `
-      <tr>
+    tbody.innerHTML = log.map((entry, idx) => `
+      <tr style="animation-delay: ${idx * 0.05 + 0.6}s">
         <td class="td-time">${entry.time || '—'}</td>
         <td><span class="status-badge ${entry.type}">${entry.type}</span></td>
         <td><span class="topic-pill">${entry.topic || '—'}</span></td>
@@ -449,6 +432,20 @@ function init() {
 
   // Generate AI summary
   generateSummary();
+}
+
+function animateValue(id, start, end, duration) {
+  const obj = document.getElementById(id);
+  if (!obj || end === 0) return;
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    obj.innerHTML = Math.floor(progress * (end - start) + start);
+    if (progress < 1) window.requestAnimationFrame(step);
+    else obj.innerHTML = end;
+  };
+  window.requestAnimationFrame(step);
 }
 
 async function generateSummary() {

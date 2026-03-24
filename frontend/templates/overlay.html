@@ -32,6 +32,14 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.02), 0 24px 64px rgba(0,0,0,0.6);
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
+  #overlay.needs-approval {
+    border-color: rgba(251,191,36,0.3);
+    animation: amberContainerPulse 2s infinite;
+  }
+  @keyframes amberContainerPulse {
+    0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.02), 0 24px 64px rgba(0,0,0,0.6), inset 0 0 20px rgba(251,191,36,0.05), 0 0 30px rgba(251,191,36,0.1); }
+    50% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 24px 64px rgba(0,0,0,0.7), inset 0 0 40px rgba(251,191,36,0.15), 0 0 60px rgba(251,191,36,0.25); }
+  }
 
 
   /* Consent banner */
@@ -54,8 +62,16 @@
   #status-dot { width:10px; height:10px; border-radius:50%; background:var(--muted); transition:all 0.4s; flex-shrink:0; }
   #status-dot.listening { background:var(--green); box-shadow:0 0 12px rgba(52,211,153,0.5); animation:pulse 2s infinite; }
   #status-dot.processing { background:var(--accent); box-shadow:0 0 12px var(--accent-glow); }
-  #status-dot.approval { background:var(--accent); box-shadow:0 0 12px var(--accent-glow); animation:pulse 1s infinite; }
+  #status-dot.approval { background:var(--amber); box-shadow:0 0 12px rgba(251,191,36,0.6); animation:heartbeatPulse 1.2s infinite; }
+  
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  @keyframes heartbeatPulse {
+    0% { transform: scale(1); opacity: 1; }
+    15% { transform: scale(1.2); opacity: 0.9; }
+    30% { transform: scale(1); opacity: 1; }
+    45% { transform: scale(1.2); opacity: 0.9; }
+    60%, 100% { transform: scale(1); opacity: 1; }
+  }
 
   #status-text { font-size:12px; font-family:'Geist Mono',monospace; color:var(--muted); flex:1; letter-spacing:0.04em; text-transform: lowercase; transition: color 0.3s; }
 
@@ -140,6 +156,7 @@
   }
   .card-label.green { color:var(--green); text-shadow: 0 0 10px rgba(52,211,153,0.3); }
   .card-label.purple { color:var(--accent); }
+  .card-label.amber-pulse { color:var(--amber); animation:heartbeatPulse 1.5s infinite; text-shadow: 0 0 12px rgba(251,191,36,0.4); }
   .card-label.purple-pulse { color:var(--accent); animation:pulse 1s infinite; text-shadow: 0 0 10px var(--accent-glow); }
   .card-label::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
 
@@ -211,6 +228,30 @@
     box-shadow: 0 0 10px transparent;
   }
   .btn-deny:hover { border-color:var(--accent); color:var(--accent); box-shadow: inset 0 0 12px var(--glow), 0 0 16px var(--glow); }
+
+  /* Approval specific buttons */
+  .approval-card .btn-approve {
+    background: var(--amber); border-color: rgba(251,191,36,0.5); color: #000;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 24px rgba(251,191,36,0.4);
+    animation: amberActionPulse 2s infinite;
+  }
+  .approval-card .btn-approve:hover {
+    background: #fcd34d; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 0 40px rgba(251,191,36,0.7); animation: none; transform:translateY(-1px);
+  }
+  @keyframes amberActionPulse {
+    0%, 100% { transform: scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 24px rgba(251,191,36,0.4); }
+    15% { transform: scale(1.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 0 40px rgba(251,191,36,0.7); }
+    30% { transform: scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 24px rgba(251,191,36,0.4); }
+    45% { transform: scale(1.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 0 40px rgba(251,191,36,0.7); }
+    60% { transform: scale(1); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 0 24px rgba(251,191,36,0.4); }
+  }
+
+  .approval-card .btn-deny {
+    border-color: rgba(255,255,255,0.08); color: var(--muted);
+  }
+  .approval-card .btn-deny:hover {
+    background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.2); color: #fff; box-shadow: none;
+  }
 
   /* History */
   #history {
@@ -388,8 +429,10 @@ function showApproval(msg) {
   `;
 
   const safePrev = (msg.suggested_response||'').replace(/`/g,'\\`');
+  const reasonText = (msg.reason||'potential commitment detected').toLowerCase();
   card.innerHTML = `
-    <div class="card-label purple-pulse">approval required · ${msg.topic||'sensitive'}</div>
+    <div class="card-label amber-pulse">approval required · ${msg.topic||'sensitive'}</div>
+    <div class="card-reason">${reasonText}</div>
     <div class="card-question">"${msg.question||''}"</div>
     <div class="card-preview">${msg.suggested_response||''}</div>
     ${buildReasoningPills(msg)}
