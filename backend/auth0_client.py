@@ -57,10 +57,13 @@ class Auth0Client:
         return FGA_ROLE_PERMISSIONS
 
     async def get_management_token(self) -> str:
+        """Always targets the Auth0 Management API."""
         if self._management_token:
             return self._management_token
-        if not self.domain or not self.client_id:
-            return ""
+        
+        # Use the hardcoded Management API audience
+        mgmt_audience = f"https://{self.domain}/api/v2/" 
+        
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -69,7 +72,7 @@ class Auth0Client:
                         "grant_type": "client_credentials",
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
-                        "audience": f"https://{self.domain}/api/v2/",
+                        "audience": mgmt_audience,
                     },
                     timeout=10
                 )
@@ -80,15 +83,11 @@ class Auth0Client:
             return ""
 
     async def get_scoped_token(self, action: str, scope: str) -> dict:
-        mgmt_token = await self.get_management_token()
-        if not mgmt_token:
-            return {
-                "access_token": f"demo_{action}_{os.urandom(4).hex()}",
-                "scope": scope,
-                "action": action,
-                "vault_sourced": False,
-                "note": "Demo mode — configure AUTH0_DOMAIN for live Token Vault"
-            }
+        """Targets either Management API or Custom API based on scope."""
+        # Determine which API to talk to
+        is_mgmt = "users" in scope or "roles" in scope
+        target_audience = f"https://{self.domain}/api/v2/" if is_mgmt else self.audience
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -97,7 +96,7 @@ class Auth0Client:
                         "grant_type": "client_credentials",
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
-                        "audience": self.audience or f"https://{self.domain}/api/v2/",
+                        "audience": target_audience,
                         "scope": scope,
                     },
                     timeout=10
@@ -105,7 +104,7 @@ class Auth0Client:
                 data = response.json()
                 return {
                     "access_token": data.get("access_token", ""),
-                    "scope": scope,
+                    "scope": data.get("scope", scope),
                     "action": action,
                     "vault_sourced": True,
                     "expires_in": data.get("expires_in", 86400)
