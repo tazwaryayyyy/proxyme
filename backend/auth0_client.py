@@ -122,21 +122,23 @@ class Auth0Client:
     async def initiate_ciba_standard(self, login_hint: str, topic: str, proposed_response: str) -> dict:
         """
         CIBA with Rich Authorization Requests (RAR).
-        Sends full context via authorization_details, and includes a minimal binding_message.
+        Sends full context via authorization_details, truncating long responses to 255 chars.
         """
-        # Build RAR payload
+        # Truncate proposed_response to 250 chars (to be safe with 255 limit)
+        truncated_response = proposed_response[:250] + ("..." if len(proposed_response) > 250 else "")
+        
+        # Build RAR payload with truncated response
         rar_payload = {
             "type": "proxyme_approval",
             "actions": ["approve", "deny"],
             "locations": ["https://proxyme.app"],
             "data": {
-                "topic": topic,
-                "suggested_response": proposed_response
+                "topic": topic[:50],  # also truncate topic if needed (max 50)
+                "suggested_response": truncated_response
             }
         }
         auth_details = json.dumps([rar_payload])
-        # Short binding_message to satisfy Auth0 requirement
-        binding_message = f"Proxy Me: {topic[:30]}"
+        binding_message = f"Proxy Me: {topic[:30]}"  # short for notification
 
         if not self.domain or not self.client_id:
             return {
