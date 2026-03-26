@@ -15,6 +15,7 @@
     --border2: rgba(255,255,255,0.08);
     --text: #ffffff; --muted: #FFFFFF99;
     --accent: #8B5CF6; --accent2: #a594f9;
+    --accent-glow: rgba(139, 92, 246, 0.3);
     --green: #34d399; --amber: #8B5CF6; --red: #ef4444;
     --glow: rgba(139,92,246,0.25);
     --blur: blur(20px);
@@ -247,6 +248,53 @@
   .history-text { color:var(--text); line-height:1.6; font-family:'Geist Sans',sans-serif; font-size:13px; font-weight:300; }
   .history-pills { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
   .h-pill { font-size:10px; font-family:'Geist Mono',monospace; padding:4px 8px; border-radius:6px; border:1px solid var(--border2); color:var(--muted); }
+
+  /* Demo mode switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 20px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  input:checked + .slider {
+    background-color: var(--accent);
+  }
+  input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+  .slider.round {
+    border-radius: 34px;
+  }
+  .slider.round:before {
+    border-radius: 50%;
+  }
 </style>
 </head>
 <body>
@@ -267,22 +315,41 @@
     <button id="toggle-btn" onclick="toggleListening()">START</button>
     <button id="end-btn" onclick="endMeeting()">END</button>
   </div>
+  <div id="demo-mode" style="display: flex; align-items: center; gap: 8px; margin-top: 8px; justify-content: flex-end;">
+    <span style="font-size: 10px; font-family: 'Geist Mono', monospace;">Demo Mode</span>
+    <label class="switch">
+      <input type="checkbox" id="demo-toggle">
+      <span class="slider round"></span>
+    </label>
+  </div>
+  <div id="auth-status" style="font-size: 10px; font-family: 'Geist Mono', monospace; color: var(--muted); text-align: center; padding: 4px; border-top: 1px solid var(--border); margin-top: 4px;"></div>
 
   <div id="transcript-box">Waiting for audio...</div>
   <div id="flow-ticker" class="hidden"></div>
   <div id="cards"></div>
   <div id="history"></div>
+  <div id="accuracy-badge" style="font-size:10px;font-family:'Geist Mono',monospace;color:var(--muted);text-align:center;margin-top:8px;">Accuracy: --</div>
 </div>
 
 <script>
 const SESSION_ID = new URLSearchParams(location.search).get('session') || 'demo';
+const SUPPORTED_LANGS = ['en-US', 'es-ES', 'fr-FR', 'de-DE', 'zh-CN', 'ja-JP', 'ko-KR', 'it-IT', 'pt-BR', 'ru-RU', 'bn-BD', 'hi-IN'];
+const urlLang = new URLSearchParams(location.search).get('lang');
+const langParam = SUPPORTED_LANGS.includes(urlLang) ? urlLang : 'en-US';
 let ws = null, isListening = false, recognition = null;
 const decisionLog = [];
 const cibaTimers = {};
 let tickerTimeout = null;
+let demoMode = false;
 // Track rendered card IDs to prevent duplicates on WS reconnect
 const renderedApprovals = new Set();
 const renderedSuggestions = new Set();
+
+// Demo mode listener
+const demoCheckbox = document.getElementById('demo-toggle');
+if (demoCheckbox) {
+    demoCheckbox.addEventListener('change', (e) => { demoMode = e.target.checked; });
+}
 
 // --- WS keepalive so connection survives window minimize ---
 let keepaliveInterval = null;
@@ -512,6 +579,15 @@ function showApproval(msg) {
   document.getElementById('cards').prepend(card);
   document.getElementById('overlay').classList.add('needs-approval');
 
+  // Auto-approve in demo mode after a brief delay
+  if (demoMode) {
+    setTimeout(() => {
+      if (card.parentNode && renderedApprovals.has(msg.approval_id)) {
+        respond(msg.approval_id, true, card, msg.topic || 'sensitive', msg.suggested_response || '');
+      }
+    }, 500);
+  }
+
   // Elapsed timer
   const start = Date.now();
   cibaTimers[msg.approval_id] = setInterval(() => {
@@ -571,16 +647,26 @@ function addHistory(entry) {
   iconEl.textContent = icons[entry.type] || '·';
   const bodyEl = document.createElement('div');
   bodyEl.className = 'history-body';
-  bodyEl.innerHTML = `
-    <div class="history-text">${entry.text}</div>
-    <div class="history-pills">
-      <span class="h-pill ${entry.type==='approve'?'approved':entry.type==='deny'?'denied':'auto'}">${entry.type}</span>
-      <span class="h-pill">topic: ${entry.topic}</span>
-      <span class="h-pill">${entry.time}</span>
-    </div>`;
+  
+  const textDiv = document.createElement('div');
+  textDiv.className = 'history-text';
+  textDiv.textContent = entry.text;
+  
+  const pillsDiv = document.createElement('div');
+  pillsDiv.className = 'history-pills';
+  const typeClass = entry.type === 'approve' ? 'approved' : entry.type === 'deny' ? 'denied' : 'auto';
+  pillsDiv.innerHTML = `
+    <span class="h-pill ${typeClass}">${entry.type}</span>
+    <span class="h-pill">topic: ${entry.topic}</span>
+    <span class="h-pill">${entry.time}</span>
+  `;
+  
+  bodyEl.appendChild(textDiv);
+  bodyEl.appendChild(pillsDiv);
   item.append(iconEl, bodyEl);
   history.prepend(item);
   while (history.children.length > 10) history.lastChild.remove();
+  updateAccuracy();
 }
 
 function endMeeting() {
@@ -597,7 +683,7 @@ function startListening() {
   recognition = new SR();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = 'en-US';
+  recognition.lang = langParam;
   recognition.maxAlternatives = 1;
 
   let finalBuffer = '', debounce = null;
@@ -661,6 +747,38 @@ function startListening() {
 
   recognition.start();
 }
+
+function updateAccuracy() {
+    if (decisionLog.length === 0) {
+        document.getElementById('accuracy-badge').textContent = 'Accuracy: --';
+        return;
+    }
+    const recent = decisionLog.slice(-10);
+    let positive = 0, negative = 0;
+    recent.forEach(d => {
+        if (d.type === 'use' || d.type === 'approve') positive++;
+        else if (d.type === 'deny' || d.type === 'timeout') negative++;
+    });
+    const total = positive + negative;
+    const accuracy = total > 0 ? Math.round((positive / total) * 100) : 0;
+    document.getElementById('accuracy-badge').textContent = `Accuracy (last ${total}): ${accuracy}%`;
+}
+
+async function fetchRole() {
+    const res = await fetch(`/api/session/${SESSION_ID}/role`);
+    if (res.ok) {
+        const data = await res.json();
+        const statusDiv = document.getElementById('auth-status');
+        if (statusDiv) {
+            statusDiv.textContent = `Role: ${data.label || data.role} | Authorization: ${data.allowed_topics?.join(', ') || 'custom'}`;
+        }
+    }
+}
+
+fetchRole().catch(() => {
+    const statusDiv = document.getElementById('auth-status');
+    if (statusDiv) statusDiv.textContent = 'Role: unavailable';
+});
 
 function stopListening() {
   if (recognition) { recognition.stop(); recognition = null; }

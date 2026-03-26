@@ -121,22 +121,23 @@ class Auth0Client:
 
     async def initiate_ciba_standard(self, login_hint: str, topic: str, proposed_response: str) -> dict:
         """
-        CIBA standard flow without Rich Authorization Requests (RAR).
-        Context is passed via binding_message.
+        CIBA with Rich Authorization Requests (RAR).
+        Sends full context via authorization_details.
         """
-        # Auth0 strictly limits binding_message to 64 chars and specific symbols (+-_.,:#)
-        clean_topic = re.sub(r'[^a-zA-Z0-9\s\+\-\_\.\,\:\#]', '', topic)
-        clean_response = re.sub(r'[^a-zA-Z0-9\s\+\-\_\.\,\:\#]', '', proposed_response)
+        # Build RAR payload
+        rar_payload = {
+            "type": "proxyme_approval",
+            "actions": ["approve", "deny"],
+            "locations": ["https://proxyme.app"],
+            "data": {
+                "topic": topic,
+                "suggested_response": proposed_response
+            }
+        }
+        # Auth0 expects authorization_details as a JSON string in the request body
+        import json
+        auth_details = json.dumps([rar_payload])
 
-        prefix = f"ProxyMe: {clean_topic[:10]} - "
-        remaining_len = 64 - len(prefix) - 3  # reserve 3 for '...'
-        
-        if len(clean_response) > remaining_len:
-            display_message = f"{prefix}{clean_response[:remaining_len]}..."
-        else:
-            display_message = (prefix + clean_response)[:64]
-
-        
         if not self.domain or not self.client_id:
             return {
                 "auth_req_id": f"demo_ciba_{os.urandom(6).hex()}",
@@ -153,18 +154,16 @@ class Auth0Client:
                         "client_id": self.client_id,
                         "client_secret": self.client_secret,
                         "login_hint": login_hint,
-                        "scope": "openid profile email", # Standard scopes
+                        "scope": "openid profile email",
                         "audience": self.audience,
-                        "binding_message": display_message, # This shows on your phone
+                        "authorization_details": auth_details,  # RAR
                     },
                     timeout=15
                 )
-                
                 if response.status_code == 200:
                     data = response.json()
                     data["demo_mode"] = False
                     return data
-                
                 return {
                     "auth_req_id": f"demo_ciba_{os.urandom(6).hex()}",
                     "expires_in": 300,

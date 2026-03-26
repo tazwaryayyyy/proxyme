@@ -1,16 +1,19 @@
 import os
 import json
 import asyncio
+import datetime
+from datetime import timezone
 from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from urllib.parse import urlparse
 import uvicorn
 
 from .permission_engine import PermissionEngine
@@ -67,6 +70,7 @@ async def start_session(config: SessionConfig):
         "responses": [],
         "pending": None,
         "ws_lock": asyncio.Lock(),
+        "last_topic": None,
     }
     audit_logs[session_id] = []
     return {"session_id": session_id, "status": "active"}
@@ -246,184 +250,217 @@ async def process_transcript(websocket: WebSocket, session_id: str, transcript: 
 
         check = await permission_engine.check(session_id, transcript, auth0_client)
 
-        audit_event = {
-            "transcript": transcript,
-            "topic": check.get("topic"),
-            "allowed": check.get("allowed"),
-            "layer": check.get("layer"),
-            "fga_role": check.get("fga_role"),
-            "confidence": check.get("confidence"),
-            "token_action": classify_token.get("action"),
-            "token_scope": classify_token.get("scope"),
-            "vault_sourced": classify_token.get("vault_sourced", False),
-        }
+        topic = check.get("topic", "general")
+        last_topic = active_sessions[session_id].get("last_topic")
+        topic_change = (last_topic is not None and last_topic != topic)
+        active_sessions[session_id]["last_topic"] = topic
 
-        # ── Auto-approved path ───────────────────────────────────────────────
-        if check["allowed"]:
-            await safe_send(websocket, ws_lock, {
-                "type": "flow_ticker",
-                "message": f"[FGA Check] Allowed ({check.get('layer')})"
-            })
-            await safe_send(websocket, ws_lock, {
-                "type": "flow_ticker",
-                "message": "[Token Vault] Fetching update:users..."
-            })
-
-            gen_token = await auth0_client.get_scoped_token(
-                action="generate_response",
-                scope="update:users"
-            )
-
-            await safe_send(websocket, ws_lock, {
-                "type": "flow_ticker",
-                "message": "[Groq AI] Generating response..."
-            })
-
-            response = await groq_agent.generate_response(
-                transcript,
-                active_sessions[session_id].get("config", {}),
-                check.get("matched_rule"),
-                active_sessions[session_id]["transcript"]
-            )
-
-            audit_event.update({"response_generated": True, "gen_token_scope": gen_token.get("scope")})
-            audit_logs[session_id].append(audit_event)
-
-            await safe_send(websocket, ws_lock, {
-                "type": "suggestion",
-                "text": response,
-                "topic": check.get("topic", "general"),
-                "confidence": check.get("confidence", 0.9),
-                "matched_rule": check.get("matched_rule"),
-                "fga_role": check.get("fga_role"),
-                "fga_label": check.get("fga_label"),
+        analysis_task = asyncio.create_task(groq_agent.analyze_transcript_chunk(transcript))
+        
+        # Ensure analysis task is cleaned up even if errors occur
+        try:
+            audit_event = {
+                "transcript": transcript,
+                "topic": check.get("topic"),
+                "allowed": check.get("allowed"),
                 "layer": check.get("layer"),
-                "approved": True,
-            })
-
-        # ── Approval required path ───────────────────────────────────────────
-        else:
-            await safe_send(websocket, ws_lock, {
-                "type": "flow_ticker",
-                "message": f"[FGA Check] Denied ({check.get('layer')})"
-            })
-            await safe_send(websocket, ws_lock, {
-                "type": "flow_ticker",
-                "message": "[Groq AI] Generating preview..."
-            })
-
-            approval_id = os.urandom(6).hex()
-            pending_approvals[approval_id] = asyncio.Event()
-
-            preview = await groq_agent.generate_response(
-                transcript,
-                active_sessions[session_id].get("config", {}),
-                None,
-                active_sessions[session_id]["transcript"]
-            )
-
-            await safe_send(websocket, ws_lock, {
-                "type": "flow_ticker",
-                "message": "[CIBA] Initiating Step-up Auth..."
-            })
-
-            # Use AUTH0_USER_EMAIL env var — must be the enrolled Guardian user's email
-            user_email = os.getenv(
-                "AUTH0_USER_EMAIL",
-                active_sessions[session_id].get("config", {}).get("user_email", "")
-            )
-
-            user_id = os.getenv("AUTH0_USER_ID", "demo_user")
-            login_hint = json.dumps({
-                "format": "iss_sub",
-                "iss": f"https://{auth0_client.domain}/",
-                "sub": user_id
-            })
-
-            ciba_result = await auth0_client.initiate_ciba_standard(
-                login_hint=login_hint,
-                topic=check.get("topic", "sensitive"),
-                proposed_response=preview
-            )
-
-            audit_event.update({
-                "ciba_initiated": True,
-                "ciba_demo_mode": ciba_result.get("demo_mode", True),
-                "rar_topic": check.get("topic", "sensitive"), # Fallback since RAR is removed
-                "approval_id": approval_id,
-            })
-            audit_logs[session_id].append(audit_event)
-
-            await safe_send(websocket, ws_lock, {
-                "type": "approval_required",
-                "approval_id": approval_id,
-                "topic": check.get("topic", "sensitive"),
-                "question": transcript,
-                "suggested_response": preview,
-                "reason": check.get("reason", "This topic requires your approval"),
                 "fga_role": check.get("fga_role"),
-                "fga_label": check.get("fga_label"),
-                "layer": check.get("layer"),
-                "ciba_mode": "guardian" if not ciba_result.get("demo_mode") else "overlay",
-                "rar_details": {}, # Empty object to avoid frontend breaking
-            })
+                "confidence": check.get("confidence"),
+                "token_action": classify_token.get("action"),
+                "token_scope": classify_token.get("scope"),
+                "vault_sourced": classify_token.get("vault_sourced", False),
+            }
 
-            # Start CIBA polling in background so phone approval also resolves the event
-            auth_req_id = ciba_result.get("auth_req_id", "demo_ciba_")
-            ciba_poll_task = asyncio.create_task(
-                poll_ciba_until_resolved(
-                    auth_req_id=auth_req_id,
-                    approval_id=approval_id,
-                    interval=ciba_result.get("interval", 5),
-                    timeout=ciba_result.get("expires_in", 300),
-                )
-            )
-
-            # Wait for EITHER the overlay button OR the Guardian phone tap
-            try:
-                await asyncio.wait_for(
-                    pending_approvals[approval_id].wait(),
-                    timeout=60  # hard ceiling regardless of CIBA expiry
-                )
-                approved = approval_results.get(approval_id, False)
-
-                audit_logs[session_id].append({
-                    "type": "approval_decision",
-                    "approval_id": approval_id,
-                    "approved": approved,
-                    "topic": check.get("topic"),
-                })
-
-                if approved:
-                    await safe_send(websocket, ws_lock, {
-                        "type": "suggestion",
-                        "text": preview,
-                        "topic": check.get("topic"),
-                        "approved": True,
-                        "approval_id": approval_id,
-                        "confidence": check.get("confidence"),
-                        "matched_rule": "user approved via CIBA",
-                        "layer": "ciba_approved",
-                    })
-                else:
-                    # Decline — send immediately, no lock contention
-                    await safe_send(websocket, ws_lock, {
-                        "type": "denied",
-                        "approval_id": approval_id,
-                        "message": "You chose to handle this yourself.",
-                    })
-
-            except asyncio.TimeoutError:
+            # ── Auto-approved path ───────────────────────────────────────────────
+            if check["allowed"]:
                 await safe_send(websocket, ws_lock, {
-                    "type": "timeout",
-                    "approval_id": approval_id,
-                    "message": "Approval timed out — handle this one yourself.",
+                    "type": "flow_ticker",
+                    "message": f"[FGA Check] Allowed ({check.get('layer')})"
                 })
-            finally:
-                # Always clean up — this is what was missing for the stuck decline
-                ciba_poll_task.cancel()
-                pending_approvals.pop(approval_id, None)
-                approval_results.pop(approval_id, None)
+                await safe_send(websocket, ws_lock, {
+                    "type": "flow_ticker",
+                    "message": "[Token Vault] Fetching update:users..."
+                })
+
+                gen_token = await auth0_client.get_scoped_token(
+                    action="generate_response",
+                    scope="update:users"
+                )
+
+                await safe_send(websocket, ws_lock, {
+                    "type": "flow_ticker",
+                    "message": "[Groq AI] Generating response..."
+                })
+
+                response = await groq_agent.generate_response(
+                    transcript,
+                    active_sessions[session_id].get("config", {}),
+                    check.get("matched_rule"),
+                    active_sessions[session_id]["transcript"],
+                    topic_change=topic_change
+                )
+
+                audit_event.update({"response_generated": True, "gen_token_scope": gen_token.get("scope")})
+                audit_logs[session_id].append(audit_event)
+
+                analysis_result = await analysis_task
+                audit_logs[session_id].append({
+                    "type": "analysis",
+                    "transcript": transcript,
+                    "analysis": analysis_result,
+                    "timestamp": datetime.datetime.now(timezone.utc).isoformat()
+                })
+
+                await safe_send(websocket, ws_lock, {
+                    "type": "suggestion",
+                    "text": response,
+                    "topic": check.get("topic", "general"),
+                    "confidence": check.get("confidence", 0.9),
+                    "matched_rule": check.get("matched_rule"),
+                    "fga_role": check.get("fga_role"),
+                    "fga_label": check.get("fga_label"),
+                    "layer": check.get("layer"),
+                    "approved": True,
+                })
+
+            # ── Approval required path ───────────────────────────────────────────
+            else:
+                await safe_send(websocket, ws_lock, {
+                    "type": "flow_ticker",
+                    "message": f"[FGA Check] Denied ({check.get('layer')})"
+                })
+                await safe_send(websocket, ws_lock, {
+                    "type": "flow_ticker",
+                    "message": "[Groq AI] Generating preview..."
+                })
+
+                approval_id = os.urandom(6).hex()
+                pending_approvals[approval_id] = asyncio.Event()
+
+                preview = await groq_agent.generate_response(
+                    transcript,
+                    active_sessions[session_id].get("config", {}),
+                    None,
+                    active_sessions[session_id]["transcript"],
+                    topic_change=topic_change
+                )
+
+                await safe_send(websocket, ws_lock, {
+                    "type": "flow_ticker",
+                    "message": "[CIBA] Initiating Step-up Auth..."
+                })
+
+                user_id = os.getenv("AUTH0_USER_ID", "demo_user")
+                login_hint = json.dumps({
+                    "format": "iss_sub",
+                    "iss": f"https://{auth0_client.domain}/",
+                    "sub": user_id
+                })
+
+                ciba_result = await auth0_client.initiate_ciba_standard(
+                    login_hint=login_hint,
+                    topic=check.get("topic", "sensitive"),
+                    proposed_response=preview
+                )
+
+                audit_event.update({
+                    "ciba_initiated": True,
+                    "ciba_demo_mode": ciba_result.get("demo_mode", True),
+                    "rar_topic": check.get("topic", "sensitive"),
+                    "approval_id": approval_id,
+                })
+                audit_logs[session_id].append(audit_event)
+
+                analysis_result = await analysis_task
+                audit_logs[session_id].append({
+                    "type": "analysis",
+                    "transcript": transcript,
+                    "analysis": analysis_result,
+                    "timestamp": datetime.datetime.now(timezone.utc).isoformat()
+                })
+
+                await safe_send(websocket, ws_lock, {
+                    "type": "approval_required",
+                    "approval_id": approval_id,
+                    "topic": check.get("topic", "sensitive"),
+                    "question": transcript,
+                    "suggested_response": preview,
+                    "reason": check.get("reason", "This topic requires your approval"),
+                    "fga_role": check.get("fga_role"),
+                    "fga_label": check.get("fga_label"),
+                    "layer": check.get("layer"),
+                    "ciba_mode": "guardian" if not ciba_result.get("demo_mode") else "overlay",
+                    "rar_details": {},
+                })
+
+                # Start CIBA polling in background so phone approval also resolves the event
+                auth_req_id = ciba_result.get("auth_req_id", "demo_ciba_")
+                ciba_poll_task = asyncio.create_task(
+                    poll_ciba_until_resolved(
+                        auth_req_id=auth_req_id,
+                        approval_id=approval_id,
+                        interval=ciba_result.get("interval", 5),
+                        timeout=ciba_result.get("expires_in", 300),
+                    )
+                )
+
+                # Wait for EITHER the overlay button OR the Guardian phone tap
+                try:
+                    await asyncio.wait_for(
+                        pending_approvals[approval_id].wait(),
+                        timeout=60
+                    )
+                    approved = approval_results.get(approval_id, False)
+
+                    audit_logs[session_id].append({
+                        "type": "approval_decision",
+                        "approval_id": approval_id,
+                        "approved": approved,
+                        "topic": check.get("topic"),
+                    })
+
+                    if approved:
+                        await safe_send(websocket, ws_lock, {
+                            "type": "suggestion",
+                            "text": preview,
+                            "topic": check.get("topic"),
+                            "approved": True,
+                            "approval_id": approval_id,
+                            "confidence": check.get("confidence"),
+                            "matched_rule": "user approved via CIBA",
+                            "layer": "ciba_approved",
+                        })
+                    else:
+                        await safe_send(websocket, ws_lock, {
+                            "type": "denied",
+                            "approval_id": approval_id,
+                            "message": "You chose to handle this yourself.",
+                        })
+
+                except asyncio.TimeoutError:
+                    await safe_send(websocket, ws_lock, {
+                        "type": "timeout",
+                        "approval_id": approval_id,
+                        "message": "Approval timed out — handle this one yourself.",
+                    })
+                finally:
+                    try:
+                        ciba_poll_task.cancel()
+                        await ciba_poll_task
+                    except asyncio.CancelledError:
+                        pass
+                    pending_approvals.pop(approval_id, None)
+                    approval_results.pop(approval_id, None)
+
+        except Exception as e:
+            # Ensure analysis task is cancelled on error
+            if not analysis_task.done():
+                analysis_task.cancel()
+            try:
+                await analysis_task
+            except asyncio.CancelledError:
+                pass
+            raise
 
     except Exception as e:
         try:
@@ -482,6 +519,39 @@ async def get_history(session_id: str):
         "transcript": active_sessions[session_id].get("transcript", []),
         "audit_log": audit_logs.get(session_id, []),
     }
+
+
+@app.get("/api/session/{session_id}/role")
+async def get_session_role(session_id: str):
+    if session_id not in active_sessions:
+        raise HTTPException(404, "Session not found")
+    role = permission_engine.session_roles.get(session_id, "custom")
+    fga_result = auth0_client.get_fga_roles().get(role, {})
+    return {
+        "role": role,
+        "label": fga_result.get("label", role),
+        "allowed_topics": fga_result.get("allowed_topics", [])
+    }
+
+
+@app.post("/api/export/{session_id}")
+async def export_audit(session_id: str, webhook_url: str = Query(...)):
+    log = audit_logs.get(session_id, [])
+    if not log:
+        raise HTTPException(404, "No data to export")
+    
+    # Validate URL to prevent SSRF
+    parsed = urlparse(webhook_url)
+    if parsed.scheme not in ('https',) or not parsed.netloc:
+        raise HTTPException(400, "Invalid webhook URL - must be HTTPS")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(webhook_url, json={"session_id": session_id, "log": log}, timeout=10)
+            resp.raise_for_status()
+            return {"status": "exported"}
+        except Exception as e:
+            raise HTTPException(500, f"Export failed: {str(e)}")
 
 
 if __name__ == "__main__":
