@@ -121,24 +121,13 @@ class Auth0Client:
 
     async def initiate_ciba_standard(self, login_hint: str, topic: str, proposed_response: str) -> dict:
         """
-        CIBA with Rich Authorization Requests (RAR).
-        Sends full context via authorization_details, truncating long responses to 255 chars.
+        CIBA using standard binding_message (no RAR) because RAR is not enabled.
+        Binding message is limited to 64 chars, so we format a concise notification.
         """
-        # Truncate proposed_response to 250 chars (to be safe with 255 limit)
-        truncated_response = proposed_response[:250] + ("..." if len(proposed_response) > 250 else "")
-        
-        # Build RAR payload with truncated response
-        rar_payload = {
-            "type": "proxyme_approval",
-            "actions": ["approve", "deny"],
-            "locations": ["https://proxyme.app"],
-            "data": {
-                "topic": topic[:50],  # also truncate topic if needed (max 50)
-                "suggested_response": truncated_response
-            }
-        }
-        auth_details = json.dumps([rar_payload])
-        binding_message = f"Proxy Me: {topic[:30]}"  # short for notification
+        # Build a short binding_message (max 64 chars)
+        # Format: "Proxy Me: {topic}: {first part of response}"
+        response_preview = proposed_response[:30] + ("..." if len(proposed_response) > 30 else "")
+        binding_message = f"Proxy Me: {topic[:15]}: {response_preview}"[:64]
 
         if not self.domain or not self.client_id:
             return {
@@ -158,8 +147,7 @@ class Auth0Client:
                         "login_hint": login_hint,
                         "scope": "openid profile email",
                         "audience": self.audience,
-                        "authorization_details": auth_details,
-                        "binding_message": binding_message,  # <-- added
+                        "binding_message": binding_message,  # only binding_message
                     },
                     timeout=15
                 )
