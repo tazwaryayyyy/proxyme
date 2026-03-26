@@ -23,4 +23,3 @@ class SessionConfig(BaseModel):
     user_id: Optional[str] = None
     fga_role: Optional[str] = "custom"
     confidence_threshold: Optional[float] = 0.7
-    language: Optional[str] = "en-US"

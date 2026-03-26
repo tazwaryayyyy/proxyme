@@ -122,7 +122,7 @@ class Auth0Client:
     async def initiate_ciba_standard(self, login_hint: str, topic: str, proposed_response: str) -> dict:
         """
         CIBA with Rich Authorization Requests (RAR).
-        Sends full context via authorization_details.
+        Sends full context via authorization_details, and includes a minimal binding_message.
         """
         # Build RAR payload
         rar_payload = {
@@ -134,9 +134,9 @@ class Auth0Client:
                 "suggested_response": proposed_response
             }
         }
-        # Auth0 expects authorization_details as a JSON string in the request body
-        import json
         auth_details = json.dumps([rar_payload])
+        # Short binding_message to satisfy Auth0 requirement
+        binding_message = f"Proxy Me: {topic[:30]}"
 
         if not self.domain or not self.client_id:
             return {
@@ -156,7 +156,8 @@ class Auth0Client:
                         "login_hint": login_hint,
                         "scope": "openid profile email",
                         "audience": self.audience,
-                        "authorization_details": auth_details,  # RAR
+                        "authorization_details": auth_details,
+                        "binding_message": binding_message,  # <-- added
                     },
                     timeout=15
                 )

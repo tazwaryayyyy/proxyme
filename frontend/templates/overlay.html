@@ -333,9 +333,6 @@
 
 <script>
 const SESSION_ID = new URLSearchParams(location.search).get('session') || 'demo';
-const SUPPORTED_LANGS = ['en-US', 'es-ES', 'fr-FR', 'de-DE', 'zh-CN', 'ja-JP', 'ko-KR', 'it-IT', 'pt-BR', 'ru-RU', 'bn-BD', 'hi-IN'];
-const urlLang = new URLSearchParams(location.search).get('lang');
-const langParam = SUPPORTED_LANGS.includes(urlLang) ? urlLang : 'en-US';
 let ws = null, isListening = false, recognition = null;
 const decisionLog = [];
 const cibaTimers = {};
@@ -683,7 +680,6 @@ function startListening() {
   recognition = new SR();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = langParam;
   recognition.maxAlternatives = 1;
 
   let finalBuffer = '', debounce = null;

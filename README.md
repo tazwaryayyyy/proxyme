@@ -99,8 +99,6 @@ Role status displays your current FGA role and allowed topics.
 
 Demo mode toggle lets you auto-approve CIBA requests for testing and presentations.
 
-Multi-language support with 12 languages including Bengali (bn-BD) and Hindi (hi-IN). Speech recognition adapts to your selected language.
-
 ---
 
 ## Auth0 Features Used
@@ -171,9 +169,9 @@ proxyme/
 │   ├── groq_agent.py        # AsyncGroq response generation + topic change handling
 │   ├── permission_engine.py # 3-layer check: custom rules → FGA → category toggles
 │   ├── auth0_client.py      # Token Vault, CIBA+RAR, FGA roles
-│   └── models.py            # Pydantic models with language support
+│   └── models.py            # Pydantic models
 ├── frontend/templates/
-│   ├── index.html           # Setup: role selector, language dropdown, confidence slider
+│   ├── index.html           # Setup: role selector, confidence slider
 │   ├── overlay.html         # Floating overlay with CIBA polling, accuracy badge, demo mode
 │   └── summary.html         # Post-meeting stats + shareable decision trail
 ├── railway.json
